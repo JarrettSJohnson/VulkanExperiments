@@ -1,0 +1,13 @@
+[submodule "dep/glfw-3.3"]
+	path = dep/glfw-3.3
+	url = https://github.com/glfw/glfw.git
+	branch = 3.3-stable
+[submodule "dep/glm"]
+	path = dep/glm
+	url = https://github.com/g-truc/glm.git
+[submodule "dep/tinyobjloader"]
+	path = dep/tinyobjloader
+	url = https://github.com/syoyo/tinyobjloader.git
+[submodule "dep/stb"]
+	path = dep/stb
+	url = https://github.com/nothings/stb.git
