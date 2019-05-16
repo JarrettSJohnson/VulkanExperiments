@@ -294,7 +294,6 @@ void Application::createCommandBuffers()
 
 void Application::createDescriptorPool()
 {
-
   std::array<vk::DescriptorPoolSize, 2> descriptorPoolSizes = {};
   descriptorPoolSizes[0].type = vk::DescriptorType::eUniformBuffer;
   descriptorPoolSizes[0].descriptorCount =

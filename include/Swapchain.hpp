@@ -60,9 +60,9 @@ public:
   vk::SwapchainKHR swapchain() const { return *m_swapchain; }
 
 private:
-  vk::UniqueSwapchainKHR m_swapchain;
-  vk::Extent2D m_extent;
-  vk::Format m_format;
-  std::vector<vk::Image> m_images;
+  vk::UniqueSwapchainKHR m_swapchain{};
+  vk::Extent2D m_extent{};
+  vk::Format m_format{};
+  std::vector<vk::Image> m_images{};
   std::vector<vk::UniqueImageView> m_imageViews{};
 };
