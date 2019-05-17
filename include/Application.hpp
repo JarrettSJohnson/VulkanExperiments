@@ -14,6 +14,7 @@
 #include "UBO.hpp"
 #include "Framebuffer.hpp"
 #include "Swapchain.hpp"
+#include "Pipeline.hpp"
 
 inline VkResult CreateDebugUtilsMessengerEXT(VkInstance instance,
     const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo,
@@ -50,7 +51,7 @@ class Application
 public:
   Application();
   void run();
-  bool framebufferResized{false};
+ // bool framebufferResized{false};
   void recreateSwapchain();
 
 private:
@@ -74,8 +75,7 @@ private:
 
   std::vector<vk::UniqueCommandBuffer> m_commandBuffers{};
 
-  vk::UniquePipelineLayout m_pipelineLayout{};
-  vk::UniquePipeline m_graphicsPipeline{};
+  Pipeline m_graphicsPipeline{};
   vk::UniqueRenderPass m_renderPass{};
   vk::UniqueDescriptorSetLayout m_descriptorSetLayout{};
   std::vector<vk::UniqueFramebuffer> m_framebuffers{};
@@ -98,8 +98,6 @@ private:
   vk::UniqueImage m_depthImage{};
   vk::UniqueDeviceMemory m_depthImageMemory{};
   vk::UniqueImageView m_depthImageView{};
-
-  vk::SampleCountFlagBits msaaSamples = vk::SampleCountFlagBits::e1;
 
   vk::UniqueImage colorImage{};
   vk::UniqueDeviceMemory colorImageMemory{};

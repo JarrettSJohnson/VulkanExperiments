@@ -36,7 +36,7 @@ public:
   vk::ShaderStageFlags m_shaderStage;
 };
 
-class PipelineLayout
+class DescriptorSetLayout
 {
 public:
   template <typename UBOType> void addUBO(const UBO<UBOType>& ubo)

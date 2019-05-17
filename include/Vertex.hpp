@@ -18,12 +18,12 @@ struct Vertex{
   glm::vec2 texCoord;
 
 
-  static vk::VertexInputBindingDescription getBindingDescription(){
-    vk::VertexInputBindingDescription bindingDescription{};
-    bindingDescription.binding = 0;
-    bindingDescription.stride = sizeof(Vertex);
-    bindingDescription.inputRate = vk::VertexInputRate::eVertex;
-    return bindingDescription;
+  static std::array<vk::VertexInputBindingDescription, 1> getBindingDescription(){
+    std::array<vk::VertexInputBindingDescription, 1> bindingDescriptions{};
+    bindingDescriptions[0].binding = 0;
+    bindingDescriptions[0].stride = sizeof(Vertex);
+    bindingDescriptions[0].inputRate = vk::VertexInputRate::eVertex;
+    return bindingDescriptions;
   }
   static std::array<vk::VertexInputAttributeDescription, 3> getAttributeDescriptions(){
     std::array<vk::VertexInputAttributeDescription, 3> attributeDescriptions{};

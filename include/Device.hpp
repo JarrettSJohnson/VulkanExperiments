@@ -30,4 +30,6 @@ struct Device {
   std::vector<vk::QueueFamilyProperties> queueFamilyProperties{};
   std::vector<std::string> supportedExtentions;
   vk::UniqueCommandPool m_commandPool{};
+
+  vk::SampleCountFlagBits m_msaaSamples;
 };

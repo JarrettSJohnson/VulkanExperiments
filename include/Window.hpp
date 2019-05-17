@@ -8,6 +8,7 @@ class Window
 {
 public:
   Window() = default;
+  inline static bool framebufferResized = false;
   Window(int width, int height) : m_width{width}, m_height{height}
   {
     glfwInit();
@@ -21,6 +22,7 @@ public:
         m_window, [](GLFWwindow* window, int width, int height) {
           auto app =
               reinterpret_cast<Window*>(glfwGetWindowUserPointer(window));
+      Window::framebufferResized = true;
           // app->recreateSwapchain();
          // app->framebufferResized = true;
         });
