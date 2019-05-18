@@ -175,10 +175,22 @@ inline void copyBuffer(Device& device, vk::Buffer srcBuffer,
   device.m_graphicsQueue.waitIdle();
 }
 
-inline bool hasStencilComponent(vk::Format format)
+inline bool hasStencilComponent(const vk::Format& format)
 {
   return format == vk::Format::eD32SfloatS8Uint ||
          format == vk::Format::eD24UnormS8Uint;
+}
+
+
+inline bool hasDepthComponent(const vk::Format& format)
+{
+  return format == vk::Format::eD16Unorm ||
+	     format == vk::Format::eD32Sfloat ||
+         format == vk::Format::eD24UnormS8Uint;
+}
+
+inline bool hasDepthStencilComponent(const vk::Format& format) {
+  return hasDepthComponent(format) || hasStencilComponent(format);
 }
 
 inline void transitionImageLayout(Device& device, vk::Image image,

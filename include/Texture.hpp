@@ -32,15 +32,13 @@ class Texture
 {
 public:
   Texture() = default;
-  Texture(Device& device, const std::filesystem::path& path)
-      : m_rawImage{path}
+  Texture(Device& device, const std::filesystem::path& path) : m_rawImage{path}
   {
     vk::DeviceSize size = m_rawImage.size();
-    auto [stagingBuffer, stagingBufferMemory] =
-        VKUtil::createBuffer(device, size,
-			vk::BufferUsageFlagBits::eTransferSrc,
-            vk::MemoryPropertyFlagBits::eHostVisible |
-                vk::MemoryPropertyFlagBits::eHostCoherent);
+    auto [stagingBuffer, stagingBufferMemory] = VKUtil::createBuffer(device,
+        size, vk::BufferUsageFlagBits::eTransferSrc,
+        vk::MemoryPropertyFlagBits::eHostVisible |
+            vk::MemoryPropertyFlagBits::eHostCoherent);
     void* data;
     device.device().mapMemory(
         *stagingBufferMemory, 0, size, vk::MemoryMapFlags{}, &data);
@@ -55,33 +53,69 @@ public:
 
     std::tie(m_image, m_textureImageMemory) = VKUtil::createImage(device,
         vk::Extent3D{static_cast<std::uint32_t>(width),
-                        static_cast<std::uint32_t>(height), 1},
-            m_mipLevels, vk::SampleCountFlagBits::e1,
-            vk::Format::eR8G8B8A8Unorm, vk::ImageTiling::eOptimal,
-            vk::ImageUsageFlagBits::eTransferSrc |
-                vk::ImageUsageFlagBits::eTransferDst |
-                vk::ImageUsageFlagBits::eSampled,
-            vk::MemoryPropertyFlagBits::eDeviceLocal);
+            static_cast<std::uint32_t>(height), 1},
+        m_mipLevels, vk::SampleCountFlagBits::e1, vk::Format::eR8G8B8A8Unorm,
+        vk::ImageTiling::eOptimal,
+        vk::ImageUsageFlagBits::eTransferSrc |
+            vk::ImageUsageFlagBits::eTransferDst |
+            vk::ImageUsageFlagBits::eSampled,
+        vk::MemoryPropertyFlagBits::eDeviceLocal);
 
     VKUtil::transitionImageLayout(device, *m_image, vk::Format::eR8G8B8A8Unorm,
         vk::ImageLayout::eUndefined, vk::ImageLayout::eTransferDstOptimal,
         m_mipLevels);
 
-    VKUtil::copyBufferToImage(device, *device.m_commandPool, device.m_transferQueue, *stagingBuffer, *m_image,
+    VKUtil::copyBufferToImage(device, *device.m_commandPool,
+        device.m_transferQueue, *stagingBuffer, *m_image,
         static_cast<uint32_t>(width), static_cast<uint32_t>(height));
-    VKUtil::generateMipmaps(device, *m_image, vk::Format::eR8G8B8A8Unorm, width, height,
-        m_mipLevels);
+    VKUtil::generateMipmaps(device, *m_image, vk::Format::eR8G8B8A8Unorm, width,
+        height, m_mipLevels);
     m_imageView = VKUtil::createImageView(device, *m_image,
         vk::Format::eR8G8B8A8Unorm, vk::ImageAspectFlagBits::eColor, 1);
+    createTextureSampler(device);
   }
   vk::ImageView view() const { return *m_imageView; };
+  vk::DescriptorImageInfo descriptor() const
+  {
+    vk::DescriptorImageInfo descriptor;
+    descriptor.imageLayout = m_imageLayout;
+    descriptor.imageView = *m_imageView;
+    descriptor.sampler = *m_sampler;
+    return descriptor;
+  }
 
-private:
+  vk::Sampler sampler() const { return *m_sampler; }
+  vk::UniqueSampler m_sampler{};
+  private:
+  void createTextureSampler(const Device& device)
+  {
+    vk::SamplerCreateInfo samplerInfo{};
+    samplerInfo.minFilter = vk::Filter::eLinear;
+    samplerInfo.magFilter = vk::Filter::eLinear;
+    samplerInfo.addressModeU = vk::SamplerAddressMode::eRepeat;
+    samplerInfo.addressModeV = vk::SamplerAddressMode::eRepeat;
+    samplerInfo.addressModeW = vk::SamplerAddressMode::eRepeat;
+    samplerInfo.anisotropyEnable = VK_TRUE;
+    samplerInfo.maxAnisotropy = 16;
+    samplerInfo.borderColor = vk::BorderColor::eIntOpaqueBlack;
+    samplerInfo.unnormalizedCoordinates = VK_FALSE;
+    samplerInfo.compareEnable = VK_TRUE;
+    samplerInfo.compareOp = vk::CompareOp::eAlways;
+    samplerInfo.mipmapMode = vk::SamplerMipmapMode::eLinear;
+    samplerInfo.mipLodBias = 0.0f;
+    samplerInfo.minLod = 0.0f;
+    samplerInfo.maxLod = static_cast<float>(m_mipLevels);
+
+    m_sampler = device.device().createSamplerUnique(samplerInfo);
+  }
+
+
   STB_Image m_rawImage{};
   vk::UniqueImage m_image{};
   vk::UniqueDeviceMemory m_textureImageMemory{};
   vk::ImageLayout m_imageLayout{};
   vk::UniqueImageView m_imageView{};
+
   std::uint32_t m_mipLevels{};
   std::uint32_t layerCount{};
   vk::DescriptorImageInfo m_descriptor{};

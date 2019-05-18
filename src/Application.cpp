@@ -5,29 +5,7 @@
 
 Application::Application()
 {
-  m_window = Window{800, 600};
-  initVulkan();
-  setupDebugMessenger();
-  m_surface = m_window.createSurface(*m_instance);
-  selectPhysicalDevice();
-  m_swapchain = Swapchain{m_device, *m_surface};
-  createRenderPass();
-  createUniformBuffers();
-  createDescriptorSetLayout();
-  createPipeline();
-  createCommandPool();
-  createColorResources();
-  createDepthResources();
-  createFramebuffers();
-  m_texture =
-      Texture{m_device, "../assets/chalet.jpg"};
-  createTextureSampler();
-  m_model = Model{m_device, "../assets/chalet.obj"};
-  
-  createDescriptorPool();
-  createDescriptorSets();
-  createCommandBuffers();
-  createSyncs();
+
 }
 
 void Application::initVulkan()
@@ -87,7 +65,7 @@ void Application::recreateSwapchain()
   createFramebuffers();
   createCommandBuffers();
   createUniformBuffers();
-  createDescriptorPool();
+  //createDescriptorPool();
   // createCommandBuffers();
 }
 
@@ -212,27 +190,7 @@ void Application::generateMipmaps(vk::Image image, vk::Format format,
   VKUtil::endSingleTimeCommands(commandBuffer, m_device.m_graphicsQueue);
 }
 
-void Application::createTextureSampler()
-{
-  vk::SamplerCreateInfo samplerInfo{};
-  samplerInfo.minFilter = vk::Filter::eLinear;
-  samplerInfo.magFilter = vk::Filter::eLinear;
-  samplerInfo.addressModeU = vk::SamplerAddressMode::eRepeat;
-  samplerInfo.addressModeV = vk::SamplerAddressMode::eRepeat;
-  samplerInfo.addressModeW = vk::SamplerAddressMode::eRepeat;
-  samplerInfo.anisotropyEnable = VK_TRUE;
-  samplerInfo.maxAnisotropy = 16;
-  samplerInfo.borderColor = vk::BorderColor::eIntOpaqueBlack;
-  samplerInfo.unnormalizedCoordinates = VK_FALSE;
-  samplerInfo.compareEnable = VK_TRUE;
-  samplerInfo.compareOp = vk::CompareOp::eAlways;
-  samplerInfo.mipmapMode = vk::SamplerMipmapMode::eLinear;
-  samplerInfo.mipLodBias = 0.0f;
-  samplerInfo.minLod = 0.0f;
-  samplerInfo.maxLod = static_cast<float>(m_mipLevels);
 
-  m_textureSampler = m_device.device().createSamplerUnique(samplerInfo);
-}
 
 void Application::createUniformBuffers()
 {
@@ -291,72 +249,6 @@ void Application::createCommandBuffers()
   }
 }
 
-void Application::createDescriptorPool()
-{
-  std::array<vk::DescriptorPoolSize, 2> descriptorPoolSizes = {};
-  descriptorPoolSizes[0].type = vk::DescriptorType::eUniformBuffer;
-  descriptorPoolSizes[0].descriptorCount =
-      static_cast<uint32_t>(m_swapchain.size());
-  descriptorPoolSizes[1].type = vk::DescriptorType::eCombinedImageSampler;
-  descriptorPoolSizes[1].descriptorCount =
-      static_cast<uint32_t>(m_swapchain.size());
-
-  vk::DescriptorPoolCreateInfo descriptorPoolCreateInfo{};
-  descriptorPoolCreateInfo.poolSizeCount =
-      static_cast<std::uint32_t>(descriptorPoolSizes.size());
-  descriptorPoolCreateInfo.pPoolSizes = descriptorPoolSizes.data();
-
-  descriptorPoolCreateInfo.maxSets = static_cast<uint32_t>(m_swapchain.size());
-
-  m_descriptorPool =
-      m_device.device().createDescriptorPoolUnique(descriptorPoolCreateInfo);
-}
-
-void Application::createDescriptorSets()
-{
-  std::vector<vk::DescriptorSetLayout> layouts(
-      m_swapchain.size(), *m_descriptorSetLayout);
-  vk::DescriptorSetAllocateInfo allocateInfo{};
-  allocateInfo.descriptorPool = *m_descriptorPool;
-  allocateInfo.descriptorSetCount = static_cast<std::uint32_t>(layouts.size());
-  allocateInfo.pSetLayouts = layouts.data();
-
-  m_descriptorSets = m_device.device().allocateDescriptorSets(allocateInfo);
-
-  for (size_t i = 0; i < m_swapchain.size(); i++) {
-    vk::DescriptorBufferInfo bufferInfo{};
-    bufferInfo.buffer = *m_UBOs[i].m_buffer;
-    bufferInfo.offset = 0;
-    bufferInfo.range = m_UBOs[i].type_size();
-
-    vk::DescriptorImageInfo imageInfo{};
-    imageInfo.imageLayout = vk::ImageLayout::eShaderReadOnlyOptimal;
-    imageInfo.imageView = m_texture.view();
-    imageInfo.sampler = *m_textureSampler;
-
-    std::array<vk::WriteDescriptorSet, 2> descriptorWrites{};
-
-    descriptorWrites[0].dstSet = m_descriptorSets[i];
-    descriptorWrites[0].dstBinding = 0;
-    descriptorWrites[0].dstArrayElement = 0;
-    descriptorWrites[0].descriptorType = vk::DescriptorType::eUniformBuffer;
-    descriptorWrites[0].descriptorCount = 1;
-    descriptorWrites[0].pBufferInfo = &bufferInfo;
-
-    descriptorWrites[1].dstSet = m_descriptorSets[i];
-    descriptorWrites[1].dstBinding = 1;
-    descriptorWrites[1].dstArrayElement = 0;
-    descriptorWrites[1].descriptorType =
-        vk::DescriptorType::eCombinedImageSampler;
-    descriptorWrites[1].descriptorCount = 1;
-    descriptorWrites[1].pImageInfo = &imageInfo;
-
-    m_device.device().updateDescriptorSets(
-        static_cast<std::uint32_t>(descriptorWrites.size()),
-        descriptorWrites.data(), 0, nullptr);
-  }
-}
-
 void Application::createRenderPass()
 {
   vk::AttachmentDescription colorAttachment;
@@ -408,16 +300,31 @@ void Application::createRenderPass()
   subpassDescription.pDepthStencilAttachment = &depthAttachmentRef;
   subpassDescription.pResolveAttachments = &resolveRef;
 
-  vk::SubpassDependency subpassDependency{};
-  subpassDependency.srcSubpass = VK_SUBPASS_EXTERNAL;
-  subpassDependency.dstSubpass = 0;
-  subpassDependency.srcStageMask =
+  std::array<vk::SubpassDependency, 2> subpassDependency{};
+
+  subpassDependency[0].srcSubpass = VK_SUBPASS_EXTERNAL;
+  subpassDependency[0].dstSubpass = 0;
+  subpassDependency[0].srcStageMask =
+          vk::PipelineStageFlagBits::eBottomOfPipe;
+  subpassDependency[0].dstStageMask =
       vk::PipelineStageFlagBits::eColorAttachmentOutput;
-  subpassDependency.dstStageMask =
-      vk::PipelineStageFlagBits::eColorAttachmentOutput;
-  subpassDependency.srcAccessMask = vk::AccessFlags{};
-  subpassDependency.dstAccessMask = vk::AccessFlagBits::eColorAttachmentRead |
+  subpassDependency[0].srcAccessMask = vk::AccessFlagBits::eMemoryRead;
+  subpassDependency[0].dstAccessMask =
+      vk::AccessFlagBits::eColorAttachmentRead |
                                     vk::AccessFlagBits::eColorAttachmentWrite;
+  subpassDependency[0].dependencyFlags = vk::DependencyFlagBits::eByRegion;
+
+  subpassDependency[1].srcSubpass = 0;
+  subpassDependency[1].dstSubpass = VK_SUBPASS_EXTERNAL;
+  subpassDependency[1].srcStageMask =
+      vk::PipelineStageFlagBits::eColorAttachmentOutput;
+  subpassDependency[1].dstStageMask =
+      vk::PipelineStageFlagBits::eBottomOfPipe;
+  subpassDependency[1].srcAccessMask =
+      vk::AccessFlagBits::eColorAttachmentRead |
+      vk::AccessFlagBits::eColorAttachmentWrite;
+  subpassDependency[1].dstAccessMask = vk::AccessFlagBits::eMemoryRead;
+  subpassDependency[1].dependencyFlags = vk::DependencyFlagBits::eByRegion;
 
   std::array<vk::AttachmentDescription, 3> attachments{
       colorAttachment, depthAttachment, resolveAttachment};
@@ -428,19 +335,10 @@ void Application::createRenderPass()
   renderPassCreateInfo.pAttachments = attachments.data();
   renderPassCreateInfo.subpassCount = 1;
   renderPassCreateInfo.pSubpasses = &subpassDescription;
-  renderPassCreateInfo.dependencyCount = 1;
-  renderPassCreateInfo.pDependencies = &subpassDependency;
+  renderPassCreateInfo.dependencyCount = (uint32_t)subpassDependency.size();
+  renderPassCreateInfo.pDependencies = subpassDependency.data();
 
   m_renderPass = m_device.device().createRenderPassUnique(renderPassCreateInfo);
-}
-
-
-void Application::createDescriptorSetLayout()
-{
-  DescriptorSetLayout layout;
-  layout.addUBO(m_UBOs.front());
-  layout.addSampler();
-  m_descriptorSetLayout = layout.generateLayout(m_device);
 }
 
 void Application::createPipeline()

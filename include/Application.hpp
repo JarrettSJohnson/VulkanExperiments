@@ -54,7 +54,8 @@ public:
  // bool framebufferResized{false};
   void recreateSwapchain();
 
-private:
+//private:
+public:
   static constexpr std::size_t framesInFlight{2};
   std::size_t currentFrame{0};
 
@@ -106,13 +107,13 @@ private:
   std::uint32_t m_mipLevels{};
 
   Texture m_texture{};
-  vk::UniqueSampler m_textureSampler;
+  //vk::UniqueSampler m_textureSampler;
 
   vk::UniqueDescriptorPool m_descriptorPool{};
   std::vector<vk::DescriptorSet> m_descriptorSets{};
 
-private:
-  static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
+public:
+	static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
       VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
       VkDebugUtilsMessageTypeFlagsEXT messageType,
       const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
