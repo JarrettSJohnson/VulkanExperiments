@@ -18,11 +18,15 @@ public:
 
   const auto& vertices() const { return m_vertices; };
   const auto& indices() const { return m_indices; };
+  auto numIndices() const
+  {
+    return static_cast<std::uint32_t>(m_indices.size());
+  }
 
   const auto vertexBuffer() const { return *m_vertexBuffer; }
   const auto indexBuffer() const { return *m_indexBuffer; }
 
-private:
+protected:
   std::vector<Vertex> m_vertices;
   std::vector<std::uint32_t> m_indices;
 

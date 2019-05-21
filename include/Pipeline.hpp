@@ -8,6 +8,7 @@
 #include "Shader.hpp"
 #include "Swapchain.hpp"
 #include "UBO.hpp"
+#include "PushConstants.hpp"
 
 class Pipeline
 {
@@ -82,9 +83,16 @@ public:
     colorBlendStateCreateInfo.attachmentCount = 1;
     colorBlendStateCreateInfo.pAttachments = &colorBlendAttachment;
 
+	vk::PushConstantRange pushConstantRange{};
+    pushConstantRange.stageFlags = vk::ShaderStageFlagBits::eVertex |
+                                       vk::ShaderStageFlagBits::eFragment;
+    pushConstantRange.size = sizeof(PushConstants);
+
     vk::PipelineLayoutCreateInfo pipelineLayoutCreateInfo{};
     pipelineLayoutCreateInfo.setLayoutCount = 1;
     pipelineLayoutCreateInfo.pSetLayouts = &descSetLayout;
+    pipelineLayoutCreateInfo.pushConstantRangeCount = 1;
+    pipelineLayoutCreateInfo.pPushConstantRanges = &pushConstantRange;
     m_pipelineLayout =
         device.device().createPipelineLayoutUnique(pipelineLayoutCreateInfo);
 

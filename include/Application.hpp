@@ -8,13 +8,15 @@
 #include <string>
 #include <vulkan/vulkan.hpp>
 
+#include "Cube.hpp"
 #include "Device.hpp"
+#include "Framebuffer.hpp"
 #include "Model.hpp"
+#include "Pipeline.hpp"
+#include "PushConstants.hpp"
+#include "Swapchain.hpp"
 #include "Texture.hpp"
 #include "UBO.hpp"
-#include "Framebuffer.hpp"
-#include "Swapchain.hpp"
-#include "Pipeline.hpp"
 
 inline VkResult CreateDebugUtilsMessengerEXT(VkInstance instance,
     const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo,
@@ -45,16 +47,15 @@ inline void framebufferResizeCallback(GLFWwindow* window, int width, int height)
 {
 }
 
-
 class Application
 {
 public:
   Application();
   void run();
- // bool framebufferResized{false};
+  // bool framebufferResized{false};
   void recreateSwapchain();
 
-//private:
+  // private:
 public:
   static constexpr std::size_t framesInFlight{2};
   std::size_t currentFrame{0};
@@ -92,7 +93,7 @@ public:
   const bool enableValidationLayers = true;
 #endif
 
-  std::vector<UBO<MVP>> m_UBOs;
+  //std::vector<UBO<MVP>> m_UBOs;
 
   Model m_model;
 
@@ -107,13 +108,13 @@ public:
   std::uint32_t m_mipLevels{};
 
   Texture m_texture{};
-  //vk::UniqueSampler m_textureSampler;
+  // vk::UniqueSampler m_textureSampler;
 
   vk::UniqueDescriptorPool m_descriptorPool{};
   std::vector<vk::DescriptorSet> m_descriptorSets{};
 
 public:
-	static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
+  static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
       VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
       VkDebugUtilsMessageTypeFlagsEXT messageType,
       const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
@@ -181,13 +182,29 @@ public:
 
   void createTextureSampler();
 
-  void updateUniformBuffer(uint32_t currentImage);
+  void updateUniformBuffer(uint32_t currentImage)
+  {
+    //VKUtil::transferToGPU(m_device, *m_UBOs[currentImage].m_memory, newUBOT);
+    m_UBOs[currentImage].copyData();
+  }
   void createUniformBuffers();
   void createDescriptorPool();
   void createDescriptorSets();
-  void createCommandBuffers();
+  // void createCommandBuffers();
+  std::vector<UBO<LightUniforms>> m_UBOs;
+  struct IndexInfo {
+    vk::Buffer vBuffer{};
+    vk::Buffer iBuffer{};
+    std::uint32_t numIndices{};
+    PushConstants pushConstants{};
+  };
+  void allocateCommandBuffers();
+  void setupCommandBuffers(
+      const std::vector<IndexInfo>& buffers, std::size_t currentFrame);
   void createSyncs();
-  void drawFrame();
+  std::uint32_t getImageIdx();
+  void drawFrame(std::uint32_t imageIdx);
+  void present(std::uint32_t imageIdx);
 
   // support
   std::vector<const char*> getRequiredExtensions();

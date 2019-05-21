@@ -1,12 +1,11 @@
 #include "Application.hpp"
 #include "Shader.hpp"
 
+#include "Light.hpp"
+
 #include <chrono>
 
-Application::Application()
-{
-
-}
+Application::Application() {}
 
 void Application::initVulkan()
 {
@@ -63,9 +62,9 @@ void Application::recreateSwapchain()
   createRenderPass();
   createPipeline();
   createFramebuffers();
-  createCommandBuffers();
+  //////////createCommandBuffers();
   createUniformBuffers();
-  //createDescriptorPool();
+  // createDescriptorPool();
   // createCommandBuffers();
 }
 
@@ -79,40 +78,43 @@ void Application::createCommandPool()
 {
   vk::CommandPoolCreateInfo commandPoolCreateInfo{};
   commandPoolCreateInfo.queueFamilyIndex = 0;
+  commandPoolCreateInfo.flags =
+      vk::CommandPoolCreateFlagBits::eResetCommandBuffer;
   m_device.m_commandPool =
       m_device.device().createCommandPoolUnique(commandPoolCreateInfo);
 }
-
 
 void Application::createColorResources()
 {
   vk::Format format = m_swapchain.format();
   vk::Extent3D extent = m_swapchain.extent3D();
-  std::tie(colorImage, colorImageMemory) =
-      VKUtil::createImage(m_device,extent, 1, m_device.m_msaaSamples, format, vk::ImageTiling::eOptimal,
-          vk::ImageUsageFlagBits::eTransientAttachment |
-              vk::ImageUsageFlagBits::eColorAttachment,
-          vk::MemoryPropertyFlagBits::eDeviceLocal);
+  std::tie(colorImage, colorImageMemory) = VKUtil::createImage(m_device, extent,
+      1, m_device.m_msaaSamples, format, vk::ImageTiling::eOptimal,
+      vk::ImageUsageFlagBits::eTransientAttachment |
+          vk::ImageUsageFlagBits::eColorAttachment,
+      vk::MemoryPropertyFlagBits::eDeviceLocal);
 
-  colorImageView =
-      VKUtil::createImageView(m_device, *colorImage, format, vk::ImageAspectFlagBits::eColor, 1);
+  colorImageView = VKUtil::createImageView(
+      m_device, *colorImage, format, vk::ImageAspectFlagBits::eColor, 1);
 
-  VKUtil::transitionImageLayout(m_device, *colorImage, format, vk::ImageLayout::eUndefined,
-      vk::ImageLayout::eColorAttachmentOptimal, 1);
+  VKUtil::transitionImageLayout(m_device, *colorImage, format,
+      vk::ImageLayout::eUndefined, vk::ImageLayout::eColorAttachmentOptimal, 1);
 }
 
 void Application::createDepthResources()
 {
   vk::Format depthFormat = VKUtil::findDepthFormat(m_device);
   vk::Extent3D extent = m_swapchain.extent3D();
-  std::tie(m_depthImage, m_depthImageMemory) = VKUtil::createImage(m_device, extent, 1, m_device.m_msaaSamples, depthFormat, vk::ImageTiling::eOptimal,
+  std::tie(m_depthImage, m_depthImageMemory) = VKUtil::createImage(m_device,
+      extent, 1, m_device.m_msaaSamples, depthFormat, vk::ImageTiling::eOptimal,
       vk::ImageUsageFlagBits::eDepthStencilAttachment,
       vk::MemoryPropertyFlagBits::eDeviceLocal);
 
-  m_depthImageView = VKUtil::createImageView(m_device,
-      *m_depthImage, depthFormat, vk::ImageAspectFlagBits::eDepth, 1);
+  m_depthImageView = VKUtil::createImageView(
+      m_device, *m_depthImage, depthFormat, vk::ImageAspectFlagBits::eDepth, 1);
 
-  VKUtil::transitionImageLayout(m_device, *m_depthImage, depthFormat, vk::ImageLayout::eUndefined,
+  VKUtil::transitionImageLayout(m_device, *m_depthImage, depthFormat,
+      vk::ImageLayout::eUndefined,
       vk::ImageLayout::eDepthStencilAttachmentOptimal, 1);
 }
 
@@ -168,8 +170,7 @@ void Application::generateMipmaps(vk::Image image, vk::Format format,
     blit.dstSubresource.baseArrayLayer = 0;
     blit.dstSubresource.layerCount = 1;
 
-    commandBuffer->blitImage(image,
-        vk::ImageLayout::eTransferSrcOptimal, image,
+    commandBuffer->blitImage(image, vk::ImageLayout::eTransferSrcOptimal, image,
         vk::ImageLayout::eTransferDstOptimal, 1, &blit, vk::Filter::eLinear);
 
     barrier.oldLayout = vk::ImageLayout::eTransferSrcOptimal;
@@ -190,8 +191,6 @@ void Application::generateMipmaps(vk::Image image, vk::Format format,
   VKUtil::endSingleTimeCommands(commandBuffer, m_device.m_graphicsQueue);
 }
 
-
-
 void Application::createUniformBuffers()
 {
   m_UBOs.reserve(m_swapchain.size());
@@ -200,7 +199,7 @@ void Application::createUniformBuffers()
   }
 }
 
-void Application::createCommandBuffers()
+void Application::allocateCommandBuffers()
 {
   m_commandBuffers.resize(m_framebuffers.size());
   vk::CommandBufferAllocateInfo allocateInfo{};
@@ -210,43 +209,60 @@ void Application::createCommandBuffers()
       static_cast<std::uint32_t>(m_commandBuffers.size());
   m_commandBuffers =
       m_device.device().allocateCommandBuffersUnique(allocateInfo);
+}
 
-  for (std::size_t i{0u}; i < m_commandBuffers.size(); ++i) {
-    vk::CommandBufferBeginInfo commandBufferBeginInfo{};
-    commandBufferBeginInfo.flags =
-        vk::CommandBufferUsageFlagBits::eSimultaneousUse;
+void Application::setupCommandBuffers(
+    const std::vector<IndexInfo>& buffers, std::size_t currentFrame)
+{
+  std::size_t i = currentFrame;
 
-    vk::RenderPassBeginInfo renderPassBeginInfo{};
-    renderPassBeginInfo.renderPass = *m_renderPass;
-    renderPassBeginInfo.framebuffer = *m_framebuffers[i];
-    renderPassBeginInfo.renderArea.offset = {0, 0};
-    renderPassBeginInfo.renderArea.extent = m_swapchain.extent();
+  // for (std::size_t i{0u}; i < m_commandBuffers.size(); ++i) {
+  m_commandBuffers[i]->reset(vk::CommandBufferResetFlagBits::eReleaseResources);
+  vk::CommandBufferBeginInfo commandBufferBeginInfo{};
+  commandBufferBeginInfo.flags =
+      vk::CommandBufferUsageFlagBits::eSimultaneousUse;
 
-    std::array<float, 4> clearcolorvalues{0.33f, 0.41f, 0.58f, 1.0f};
-    std::array<vk::ClearValue, 2> clearValues{};
-    clearValues[0].color = clearcolorvalues;
-    clearValues[1].depthStencil = {1.0f, 0};
-    renderPassBeginInfo.clearValueCount =
-        static_cast<std::uint32_t>(clearValues.size());
-    renderPassBeginInfo.pClearValues = clearValues.data();
+  vk::RenderPassBeginInfo renderPassBeginInfo{};
+  renderPassBeginInfo.renderPass = *m_renderPass;
+  renderPassBeginInfo.framebuffer = *m_framebuffers[i];
+  renderPassBeginInfo.renderArea.offset = {0, 0};
+  renderPassBeginInfo.renderArea.extent = m_swapchain.extent();
 
-    m_commandBuffers[i]->begin(commandBufferBeginInfo);
-    m_commandBuffers[i]->beginRenderPass(
-        renderPassBeginInfo, vk::SubpassContents::eInline);
-    m_commandBuffers[i]->bindPipeline(
-        vk::PipelineBindPoint::eGraphics, m_graphicsPipeline.pipeline());
-    vk::Buffer vertexBuffers[] = {m_model.vertexBuffer()};
-    vk::DeviceSize offsets[] = {0};
-    m_commandBuffers[i]->bindVertexBuffers(0, 1, vertexBuffers, offsets);
+  std::array<float, 4> clearcolorvalues{0.0f, 0.0f, 0.0f, 1.0f};
+  std::array<vk::ClearValue, 2> clearValues{};
+  clearValues[0].color = clearcolorvalues;
+  clearValues[1].depthStencil = {1.0f, 0};
+  renderPassBeginInfo.clearValueCount =
+      static_cast<std::uint32_t>(clearValues.size());
+  renderPassBeginInfo.pClearValues = clearValues.data();
+
+  m_commandBuffers[i]->begin(commandBufferBeginInfo);
+  m_commandBuffers[i]->beginRenderPass(
+      renderPassBeginInfo, vk::SubpassContents::eInline);
+  m_commandBuffers[i]->bindPipeline(
+      vk::PipelineBindPoint::eGraphics, m_graphicsPipeline.pipeline());
+
+
+
+  // vk::Buffer vertexBuffers[] = {m_model.vertexBuffer()};
+  vk::DeviceSize offsets[] = {0};
+  for (auto& buffer : buffers) {
+    m_commandBuffers[i]->bindVertexBuffers(0, 1, &buffer.vBuffer, offsets);
     m_commandBuffers[i]->bindIndexBuffer(
-        m_model.indexBuffer(), 0, vk::IndexType::eUint32);
+        // m_model.indexBuffer(), 0, vk::IndexType::eUint32);
+        buffer.iBuffer, 0, vk::IndexType::eUint32);
     m_commandBuffers[i]->bindDescriptorSets(vk::PipelineBindPoint::eGraphics,
         m_graphicsPipeline.layout(), 0, 1, &m_descriptorSets[i], 0, nullptr);
+    m_commandBuffers[i]->pushConstants(m_graphicsPipeline.layout(),
+        vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment, 0, sizeof(buffer.pushConstants),
+        &buffer.pushConstants);
     m_commandBuffers[i]->drawIndexed(
-        static_cast<std::uint32_t>(m_model.indices().size()), 1, 0, 0, 0);
-    m_commandBuffers[i]->endRenderPass();
-    m_commandBuffers[i]->end();
+        // static_cast<std::uint32_t>(m_model.indices().size()), 1, 0, 0, 0);
+        buffer.numIndices, 1, 0, 0, 0);
   }
+  m_commandBuffers[i]->endRenderPass();
+  m_commandBuffers[i]->end();
+  //  }
 }
 
 void Application::createRenderPass()
@@ -304,22 +320,20 @@ void Application::createRenderPass()
 
   subpassDependency[0].srcSubpass = VK_SUBPASS_EXTERNAL;
   subpassDependency[0].dstSubpass = 0;
-  subpassDependency[0].srcStageMask =
-          vk::PipelineStageFlagBits::eBottomOfPipe;
+  subpassDependency[0].srcStageMask = vk::PipelineStageFlagBits::eBottomOfPipe;
   subpassDependency[0].dstStageMask =
       vk::PipelineStageFlagBits::eColorAttachmentOutput;
   subpassDependency[0].srcAccessMask = vk::AccessFlagBits::eMemoryRead;
   subpassDependency[0].dstAccessMask =
       vk::AccessFlagBits::eColorAttachmentRead |
-                                    vk::AccessFlagBits::eColorAttachmentWrite;
+      vk::AccessFlagBits::eColorAttachmentWrite;
   subpassDependency[0].dependencyFlags = vk::DependencyFlagBits::eByRegion;
 
   subpassDependency[1].srcSubpass = 0;
   subpassDependency[1].dstSubpass = VK_SUBPASS_EXTERNAL;
   subpassDependency[1].srcStageMask =
       vk::PipelineStageFlagBits::eColorAttachmentOutput;
-  subpassDependency[1].dstStageMask =
-      vk::PipelineStageFlagBits::eBottomOfPipe;
+  subpassDependency[1].dstStageMask = vk::PipelineStageFlagBits::eBottomOfPipe;
   subpassDependency[1].srcAccessMask =
       vk::AccessFlagBits::eColorAttachmentRead |
       vk::AccessFlagBits::eColorAttachmentWrite;
@@ -335,7 +349,7 @@ void Application::createRenderPass()
   renderPassCreateInfo.pAttachments = attachments.data();
   renderPassCreateInfo.subpassCount = 1;
   renderPassCreateInfo.pSubpasses = &subpassDescription;
-  renderPassCreateInfo.dependencyCount = (uint32_t)subpassDependency.size();
+  renderPassCreateInfo.dependencyCount = (uint32_t) subpassDependency.size();
   renderPassCreateInfo.pDependencies = subpassDependency.data();
 
   m_renderPass = m_device.device().createRenderPassUnique(renderPassCreateInfo);
@@ -347,8 +361,8 @@ void Application::createPipeline()
       m_device, "../assets/test.vert.spv", Shader::ShaderType::VERTEX};
   Shader fragShader{
       m_device, "../assets/test.frag.spv", Shader::ShaderType::FRAGMENT};
-  m_graphicsPipeline = Pipeline{m_device, m_swapchain, *m_renderPass, *m_descriptorSetLayout,
-	  vertShader, fragShader};
+  m_graphicsPipeline = Pipeline{m_device, m_swapchain, *m_renderPass,
+      *m_descriptorSetLayout, vertShader, fragShader};
 }
 
 void Application::createFramebuffers()
@@ -387,7 +401,7 @@ void Application::createSyncs()
   }
 }
 
-void Application::updateUniformBuffer(uint32_t currentImage)
+/*void Application::updateUniformBuffer(uint32_t currentImage, MVP newMVP)
 {
   static auto startTime = std::chrono::high_resolution_clock::now();
 
@@ -410,13 +424,13 @@ void Application::updateUniformBuffer(uint32_t currentImage)
   ubo.view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f),
       glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
   ubo.proj = glm::perspective(glm::radians(45.0f),
-      m_swapchain.extent().width / (float) m_swapchain.extent().height, 0.1f, 10.0f);
-  ubo.proj[1][1] *= -1;
+      m_swapchain.extent().width / (float) m_swapchain.extent().height,
+0.1f, 10.0f); ubo.proj[1][1] *= -1;
 
   VKUtil::transferToGPU(m_device, *m_UBOs[currentImage].m_memory, ubo);
-}
+}*/
 
-void Application::drawFrame()
+std::uint32_t Application::getImageIdx()
 {
   if (Window::framebufferResized) {
     recreateSwapchain();
@@ -431,13 +445,17 @@ void Application::drawFrame()
 
   if (imageIdx.result == vk::Result::eErrorOutOfDateKHR) {
     recreateSwapchain();
-    return;
+    // return ;
   } else if (imageIdx.result != vk::Result::eSuccess &&
              imageIdx.result != vk::Result::eSuboptimalKHR) {
     throw std::runtime_error("failed to acquire swapchain image!");
   }
+  return imageIdx.value;
+}
 
-  updateUniformBuffer(imageIdx.value);
+void Application::drawFrame(std::uint32_t imageIdx)
+{
+  // updateUniformBuffer(imageIdx.value);
 
   vk::SubmitInfo submitInfo{};
 
@@ -446,18 +464,24 @@ void Application::drawFrame()
   submitInfo.signalSemaphoreCount = 1;
   submitInfo.pSignalSemaphores = &*m_presentSemaphores[currentFrame];
 
-  std::array<vk::CommandBuffer, 2> commandBuffers{
-      *m_commandBuffers[0], *m_commandBuffers[1]};
-  submitInfo.commandBufferCount =
-      static_cast<std::uint32_t>(commandBuffers.size());
-  submitInfo.pCommandBuffers = commandBuffers.data();
+  // std::array<vk::CommandBuffer, 2> commandBuffers{
+  //    *m_commandBuffers[0], *m_commandBuffers[1]};
+  // submitInfo.commandBufferCount =
+  //    static_cast<std::uint32_t>(commandBuffers.size());
+  // submitInfo.pCommandBuffers = commandBuffers.data();
+  submitInfo.commandBufferCount = 1;
+  submitInfo.pCommandBuffers = &*m_commandBuffers[currentFrame];
   vk::PipelineStageFlags waitStages[] = {
       vk::PipelineStageFlagBits::eColorAttachmentOutput};
   submitInfo.pWaitDstStageMask = waitStages;
 
   m_device.device().resetFences(1, &*m_fences[currentFrame]);
   m_device.m_graphicsQueue.submit(submitInfo, *m_fences[currentFrame]);
+  int x = 5;
+}
 
+void Application::present(std::uint32_t imageIdx)
+{
   std::array<vk::Semaphore, 1> presentSemaphores{
       *m_presentSemaphores[currentFrame]};
   std::array<vk::SwapchainKHR, 1> swapchains{m_swapchain.swapchain()};
@@ -467,27 +491,128 @@ void Application::drawFrame()
   presentInfo.pWaitSemaphores = presentSemaphores.data();
   presentInfo.swapchainCount = static_cast<std::uint32_t>(swapchains.size());
   presentInfo.pSwapchains = swapchains.data();
-  presentInfo.pImageIndices = &imageIdx.value;
+  presentInfo.pImageIndices = &imageIdx;
   if (Window::framebufferResized) {
     recreateSwapchain();
     Window::framebufferResized = false;
   }
   auto presentResult = m_device.m_graphicsQueue.presentKHR(presentInfo);
   if (presentResult == vk::Result::eErrorOutOfDateKHR ||
-      presentResult == vk::Result::eSuboptimalKHR || Window::framebufferResized) {
+      presentResult == vk::Result::eSuboptimalKHR ||
+      Window::framebufferResized) {
     Window::framebufferResized = false;
     recreateSwapchain();
   } else if (presentResult != vk::Result::eSuccess) {
     throw std::runtime_error("failed to present!");
   }
+  // m_device.m_graphicsQueue.waitIdle();
   currentFrame = (currentFrame + 1) % framesInFlight;
 }
 
 void Application::run()
 {
+  m_window = Window{800, 600};
+  initVulkan();
+  setupDebugMessenger();
+  m_surface = m_window.createSurface(*m_instance);
+  selectPhysicalDevice();
+  m_swapchain = Swapchain{m_device, *m_surface};
+  createCommandPool();
+
+  createUniformBuffers();
+  m_texture = Texture{m_device, "../assets/cat_diff.tga"};
+  m_model = Model{m_device, "../assets/cat.obj"};
+
+  CubedLight light{m_device};
+  //light.light.pos = glm::vec3(0.0f, 0.0f, 0.0f);
+  light.light.pos = glm::vec3(3.0, 3.0, 3.0f);
+  light.light.color = glm::vec3(1.0f, 1.0f, 1.0f);
+  // std::vector<UBO<MVP>> mvps;
+  // mvps.emplace_back(app.m_device, vk::ShaderStageFlagBits::eVertex);
+  // mvps.emplace_back(app.m_device, vk::ShaderStageFlagBits::eVertex);
+  for (auto& ubo : m_UBOs) {
+    ubo = UBO<LightUniforms>{m_device, vk::ShaderStageFlagBits::eAllGraphics};
+  }
+  DescriptorSetLayout layout{static_cast<std::uint32_t>(m_swapchain.size())};
+  layout.addUBO(m_UBOs);
+  layout.addSampler(m_texture);
+  m_descriptorSetLayout = layout.generateLayout(m_device);
+  m_descriptorPool = layout.generatePool(m_device);
+  std::vector<vk::DescriptorSetLayout> layouts(
+      m_swapchain.size(), *m_descriptorSetLayout);
+  vk::DescriptorSetAllocateInfo allocateInfo{};
+  allocateInfo.descriptorPool = *m_descriptorPool;
+  allocateInfo.descriptorSetCount = static_cast<std::uint32_t>(layouts.size());
+  allocateInfo.pSetLayouts = layouts.data();
+
+  m_descriptorSets = m_device.device().allocateDescriptorSets(allocateInfo);
+  layout.updateDescriptors(m_device, m_descriptorSets);
+  createRenderPass();
+  createPipeline();
+
+  createColorResources();
+  createDepthResources();
+  createFramebuffers();
+
+  std::vector<Application::IndexInfo> vBuffers;
+  vBuffers.push_back({m_model.vertexBuffer(), m_model.indexBuffer(), m_model.numIndices()});
+  vBuffers.push_back({m_model.vertexBuffer(), m_model.indexBuffer(), m_model.numIndices()});
+
+  for (auto& ubo : m_UBOs) {
+    ubo.map();
+  }
+
+  allocateCommandBuffers();
+  createSyncs();
+
   while (!m_window.shouldClose()) {
     glfwPollEvents();
-    drawFrame();
+
+    static auto startTime = std::chrono::high_resolution_clock::now();
+
+    auto currentTime = std::chrono::high_resolution_clock::now();
+    float time = std::chrono::duration<float, std::chrono::seconds::period>(
+        currentTime - startTime)
+                     .count();
+
+   // MVP ubo{};
+   // LightUniforms ubo{};
+    // ubo.model = glm::mat4(1.0f);
+    auto model = glm::rotate(glm::mat4(1.0f), time * glm::radians(90.0f),
+        glm::vec3(0.0f, 1.0f, 0.0f));
+    // ubo.model = glm::rotate(
+    //     ubo.model, time * glm::radians(90.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+    // auto model = glm::translate(glm::mat4(1.0), glm::vec3(0.0f, -1.0f,
+    // 0.0f));
+    // glm::rotate(
+    //     glm::mat4(1.0f), glm::radians(180.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+    // ubo.model = glm::scale(
+    //     ubo.model, glm::vec3(0.1, 0.1, 0.1));
+    auto viewPos = glm::vec3(0.0, 0.0, 3.0);
+    auto view = glm::lookAt(viewPos,
+        glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+    auto proj = glm::perspective(glm::radians(45.0f),
+        m_swapchain.extent().width / (float) m_swapchain.extent().height, 0.1f,
+        10.0f);
+    proj[1][1] *= -1;
+    //vBuffers[0].pushConstants.transform = proj * view * model;
+    //vBuffers[1].pushConstants.transform = proj * view * light.transform();
+    //vBuffers[0].pushConstants.lightPosition = light.light.pos;
+    //vBuffers[0].pushConstants.lightColor = light.light.color;
+    vBuffers[0].pushConstants.model = model;
+    vBuffers[1].pushConstants.model = light.transform();
+    m_UBOs[currentFrame].get().projview = proj * view;
+    m_UBOs[currentFrame].get().viewPosition = glm::vec4(viewPos.x, viewPos.y, viewPos.z, 0.0f);
+    m_UBOs[currentFrame].get().lightPosition = glm::vec4(light.light.pos.x, light.light.pos.y, light.light.pos.z, 0.0f);
+    m_UBOs[currentFrame].get().lightColor = glm::vec4(light.light.color.r, light.light.color.g, light.light.color.b, 1.0f);
+	auto imageIdx = getImageIdx();
+    updateUniformBuffer(imageIdx);
+    setupCommandBuffers(vBuffers, currentFrame);
+    drawFrame(imageIdx);
+    present(imageIdx);
+  }
+  for (auto& ubo : m_UBOs) {
+    ubo.unmap();
   }
   m_device.device().waitIdle();
 }

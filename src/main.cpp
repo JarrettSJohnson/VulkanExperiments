@@ -4,7 +4,7 @@
 int main()
 {
   Application app;
-  app.m_window = Window{800, 600};
+  /*app.m_window = Window{800, 600};
   app.initVulkan();
   app.setupDebugMessenger();
   app.m_surface = app.m_window.createSurface(*app.m_instance);
@@ -15,6 +15,12 @@ int main()
   app.createUniformBuffers();
   app.m_texture = Texture{app.m_device, "../assets/cat_diff.tga"};
   app.m_model = Model{app.m_device, "../assets/cat.obj"};
+
+  Cube cube{app.m_device};
+ // std::vector<UBO<MVP>> mvps;
+  //mvps.emplace_back(app.m_device, vk::ShaderStageFlagBits::eVertex);
+ // mvps.emplace_back(app.m_device, vk::ShaderStageFlagBits::eVertex);
+
 
   DescriptorSetLayout layout{static_cast<std::uint32_t>(app.m_swapchain.size())};
   layout.addUBO(app.m_UBOs);
@@ -37,8 +43,14 @@ int main()
   app.createDepthResources();
   app.createFramebuffers();
 
-  app.createCommandBuffers();
-  app.createSyncs();
+  std::vector<Application::IndexInfo> vBuffers;
+  vBuffers.push_back({app.m_model.vertexBuffer(), app.m_model.indexBuffer(),
+      static_cast<std::uint32_t>(app.m_model.indices().size())});
+  vBuffers.push_back({cube.vertexBuffer(), cube.indexBuffer(),
+      static_cast<std::uint32_t>(cube.indices().size())});
+
+  app.createCommandBuffers(vBuffers);
+  app.createSyncs();*/
   app.run();
   return 0;
 }

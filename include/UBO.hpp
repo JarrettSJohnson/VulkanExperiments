@@ -7,12 +7,14 @@
 #include "Device.hpp"
 
 #include "VKUtil.hpp"
+#include "Texture.hpp"
 
 struct MVP {
-  glm::mat4 model =
-      glm::rotate(glm::mat4(1.0f), 90.0f, glm::vec3(1.0f, 1.0f, 0.0f));
-  glm::mat4 view;
-  glm::mat4 proj;
+  //glm::mat4 model =
+  //    
+  //glm::mat4 view;
+  //glm::mat4 proj;
+  glm::mat4 mvp = glm::mat4(1.0f);
 };
 
 template <typename UBOType> class UBO
@@ -21,7 +23,7 @@ public:
   using type = UBOType;
   constexpr static auto type_size() { return sizeof(type); }
   UBO(Device& device, vk::ShaderStageFlags shaderStage)
-      : m_shaderStage{shaderStage}
+      : m_device{device}, m_shaderStage{shaderStage}
   {
     std::tie(m_buffer, m_memory) = VKUtil::createBuffer(device, sizeof(type),
         vk::BufferUsageFlagBits::eUniformBuffer,
@@ -30,10 +32,24 @@ public:
   };
 
   UBOType m_ubo;
-
+  vk::Device m_device;
   vk::UniqueBuffer m_buffer;
   vk::UniqueDeviceMemory m_memory;
   vk::ShaderStageFlags m_shaderStage;
+  void* mappedMem{};
+  UBOType& get() { return m_ubo; }
+  void map() { mappedMem = m_device.mapMemory(*m_memory, 0, sizeof(type)); };
+  void unmap()
+  {
+    if (mappedMem) {
+      m_device.unmapMemory(*m_memory);
+	}
+    mappedMem = nullptr;
+  }
+  void copyData()
+  {
+    std::memcpy(mappedMem, &m_ubo, sizeof(type));
+  };
 };
 
 class DescriptorSetLayout
