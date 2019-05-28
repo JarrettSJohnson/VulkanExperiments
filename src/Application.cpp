@@ -2,7 +2,7 @@
 #include "Shader.hpp"
 
 #include "Light.hpp"
-
+#include "Camera.hpp"
 #include <chrono>
 
 Application::Application() {}
@@ -516,7 +516,14 @@ void Application::run()
   allocateCommandBuffers();
   createSyncs();
 
+  Camera camera;
+
   while (!m_window.shouldClose()) {
+
+	m_window.processInputCamera(camera);
+    camera.setDir(m_window.getNewDir());
+
+
     glfwPollEvents();
 
     static auto startTime = std::chrono::high_resolution_clock::now();
@@ -539,9 +546,8 @@ void Application::run()
     //     glm::mat4(1.0f), glm::radians(180.0f), glm::vec3(0.0f, 0.0f, 1.0f));
     // ubo.model = glm::scale(
     //     ubo.model, glm::vec3(0.1, 0.1, 0.1));
-    auto viewPos = glm::vec3(0.0, 0.0, 3.0);
-    auto view = glm::lookAt(
-        viewPos, glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+    auto view = camera.view();
+    auto viewPos = camera.position();
     auto proj = glm::perspective(glm::radians(45.0f),
         m_swapchain.extent().width / (float) m_swapchain.extent().height, 0.1f,
         10.0f);
