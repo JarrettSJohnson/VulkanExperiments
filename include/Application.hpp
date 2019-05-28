@@ -15,6 +15,7 @@
 #include "Model.hpp"
 #include "Pipeline.hpp"
 #include "PushConstants.hpp"
+#include "RenderPass.hpp"
 #include "Swapchain.hpp"
 #include "Texture.hpp"
 #include "UBO.hpp"
