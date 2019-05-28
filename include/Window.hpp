@@ -15,7 +15,7 @@ public:
     glfwInit();
 
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-
+    glfwWindowHint(GLFW_RESIZABLE, GL_FALSE);
     m_window = glfwCreateWindow(m_width, m_height, "Vulkan", nullptr, nullptr);
     glfwSetInputMode(m_window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
     glfwSetWindowUserPointer(m_window, this);
@@ -25,13 +25,13 @@ public:
               reinterpret_cast<Window*>(glfwGetWindowUserPointer(glfwWin));
           window->processMouseDelta(xpos, ypos);
         });
-    glfwSetFramebufferSizeCallback(m_window, [](GLFWwindow* window, int width,
-                                                 int height) {
-      auto app = static_cast<Window*>(glfwGetWindowUserPointer(window));
-      Window::framebufferResized = true;
-      // app->recreateSwapchain();
-      // app->framebufferResized = true;
-    });
+    glfwSetFramebufferSizeCallback(
+        m_window, [](GLFWwindow* window, int width, int height) {
+          auto app = static_cast<Window*>(glfwGetWindowUserPointer(window));
+          Window::framebufferResized = true;
+          // app->recreateSwapchain();
+          // app->framebufferResized = true;
+        });
     if (m_window == nullptr) {
       throw std::runtime_error("failed to create glfw window");
     }
@@ -55,6 +55,11 @@ public:
   };
   ~Window() { glfwDestroyWindow(m_window); };
 
+  void processInputWindow() {
+    if (glfwGetKey(m_window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
+      glfwSetWindowShouldClose(m_window, true);
+  }
+
   void processInputCamera(Camera& camera)
   {
     float cameraSpeed = 0.05f; // adjust accordingly
@@ -69,9 +74,10 @@ public:
       camera.translate(
           glm::normalize(glm::cross(camera.dir(), camera.up)) * cameraSpeed);
   }
-  void processMouseDelta(double xpos, double ypos)
+  void processMouseDelta(double _xpos, double _ypos)
   {
-
+    float xpos = static_cast<float>(_xpos);
+    float ypos = static_cast<float>(_ypos);
     if (firstMouse) {
       lastX = xpos;
       lastY = ypos;
@@ -90,7 +96,7 @@ public:
     yaw += xoffset;
     pitch += yoffset;
 
-    std::clamp(pitch, -89.0f, 89.0f);
+    pitch = std::clamp(pitch, -89.0f, 89.0f);
   }
 
   glm::vec3 getNewDir()

@@ -68,15 +68,6 @@ public:
 
 public:
   DescriptorSet() = default;
-  /*template <typename UBOType> void addUBO(const UBO<UBOType>& ubo)
-  {
-    vk::DescriptorSetLayoutBinding binding{};
-    binding.binding = static_cast<std::uint32_t>(m_bindings.size());
-    binding.descriptorType = vk::DescriptorType::eUniformBuffer;
-    binding.descriptorCount = 1;
-    binding.stageFlags = ubo.m_shaderStage;
-    m_bindings.push_back(binding);
-  }*/
 
   template <typename UBOType> void addUBO(const UBO<UBOType>& ubo)
   {
@@ -113,7 +104,6 @@ public:
     item.sampler = texture.sampler();
   }
 
-  // vk::UniqueDescriptorSetLayout generateLayout(const Device& device)
   void generateLayout(const Device& device)
   {
     m_layout.resize(m_uniformBindings.size() + m_samplerBindings.size());
@@ -211,7 +201,7 @@ public:
     return m_descriptorSets;
   }
   private:
-  //std::uint32_t m_swapchainSize{};
+
   std::uint32_t m_idx{};
   vk::UniqueDescriptorSetLayout m_descriptorSetLayout{};
   vk::UniqueDescriptorPool m_descriptorPool {};

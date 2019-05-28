@@ -502,9 +502,6 @@ void Application::run()
   createPipeline();
   createFramebuffers();
 
-  // offscreenRenderPass = std::make_unique<RenderPass>(m_device);
-  // offscreenRenderPass->addAttachment();
-
   std::vector<Application::IndexInfo> vBuffers;
   vBuffers.push_back(
       {m_model.vertexBuffer(), m_model.indexBuffer(), m_model.numIndices()});
@@ -519,7 +516,7 @@ void Application::run()
   Camera camera;
 
   while (!m_window.shouldClose()) {
-
+    m_window.processInputWindow();
 	m_window.processInputCamera(camera);
     camera.setDir(m_window.getNewDir());
 
@@ -533,29 +530,14 @@ void Application::run()
         currentTime - startTime)
                      .count();
 
-    // MVP ubo{};
-    // LightUniforms ubo{};
-    // ubo.model = glm::mat4(1.0f);
-    auto model = glm::rotate(glm::mat4(1.0f), time * glm::radians(90.0f),
-        glm::vec3(0.0f, 1.0f, 0.0f));
-    // ubo.model = glm::rotate(
-    //     ubo.model, time * glm::radians(90.0f), glm::vec3(0.0f, 1.0f, 0.0f));
-    // auto model = glm::translate(glm::mat4(1.0), glm::vec3(0.0f, -1.0f,
-    // 0.0f));
-    // glm::rotate(
-    //     glm::mat4(1.0f), glm::radians(180.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-    // ubo.model = glm::scale(
-    //     ubo.model, glm::vec3(0.1, 0.1, 0.1));
+    auto model = glm::mat4(1.0f);
     auto view = camera.view();
     auto viewPos = camera.position();
     auto proj = glm::perspective(glm::radians(45.0f),
         m_swapchain.extent().width / (float) m_swapchain.extent().height, 0.1f,
         10.0f);
     proj[1][1] *= -1;
-    // vBuffers[0].pushConstants.transform = proj * view * model;
-    // vBuffers[1].pushConstants.transform = proj * view * light.transform();
-    // vBuffers[0].pushConstants.lightPosition = light.light.pos;
-    // vBuffers[0].pushConstants.lightColor = light.light.color;
+
     vBuffers[0].pushConstants.model = model;
     vBuffers[1].pushConstants.model = light.transform();
     m_UBO->get().projview = proj * view;
