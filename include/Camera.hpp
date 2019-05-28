@@ -5,7 +5,7 @@
 class Camera
 {
 public:
-  glm::mat4 view() const { return glm::lookAt(m_pos, m_pos + dir(), up); }
+  glm::mat4 view() const { return glm::lookAt(m_pos, m_pos + m_dir, up); }
   glm::vec3 position() const { return m_pos; }
   void setDir(glm::vec3 d) { m_dir = d; }
   glm::vec3 dir() const { return m_dir; }
