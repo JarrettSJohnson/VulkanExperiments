@@ -9,6 +9,7 @@
 #include <vulkan/vulkan.hpp>
 
 #include "Cube.hpp"
+#include "DescriptorSet.hpp"
 #include "Device.hpp"
 #include "Framebuffer.hpp"
 #include "Model.hpp"
