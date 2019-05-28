@@ -72,7 +72,7 @@ public:
         height, m_mipLevels);
     m_imageView = VKUtil::createImageView(device, *m_image,
         vk::Format::eR8G8B8A8Unorm, vk::ImageAspectFlagBits::eColor, 1);
-    createTextureSampler(device);
+    m_sampler = VKUtil::createTextureSampler(device, m_mipLevels);
   }
   vk::ImageView view() const { return *m_imageView; };
   vk::DescriptorImageInfo descriptor() const
@@ -87,28 +87,6 @@ public:
   vk::Sampler sampler() const { return *m_sampler; }
   vk::UniqueSampler m_sampler{};
   private:
-  void createTextureSampler(const Device& device)
-  {
-    vk::SamplerCreateInfo samplerInfo{};
-    samplerInfo.minFilter = vk::Filter::eLinear;
-    samplerInfo.magFilter = vk::Filter::eLinear;
-    samplerInfo.addressModeU = vk::SamplerAddressMode::eRepeat;
-    samplerInfo.addressModeV = vk::SamplerAddressMode::eRepeat;
-    samplerInfo.addressModeW = vk::SamplerAddressMode::eRepeat;
-    samplerInfo.anisotropyEnable = VK_TRUE;
-    samplerInfo.maxAnisotropy = 16;
-    samplerInfo.borderColor = vk::BorderColor::eIntOpaqueBlack;
-    samplerInfo.unnormalizedCoordinates = VK_FALSE;
-    samplerInfo.compareEnable = VK_TRUE;
-    samplerInfo.compareOp = vk::CompareOp::eAlways;
-    samplerInfo.mipmapMode = vk::SamplerMipmapMode::eLinear;
-    samplerInfo.mipLodBias = 0.0f;
-    samplerInfo.minLod = 0.0f;
-    samplerInfo.maxLod = static_cast<float>(m_mipLevels);
-
-    m_sampler = device.device().createSamplerUnique(samplerInfo);
-  }
-
 
   STB_Image m_rawImage{};
   vk::UniqueImage m_image{};

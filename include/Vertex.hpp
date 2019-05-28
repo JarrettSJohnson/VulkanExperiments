@@ -1,7 +1,7 @@
 #pragma once
 
 #include <vulkan/vulkan.hpp>
-#include <array>
+#include <vector>
 
 #define GLM_FORCE_RADIANS
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
@@ -18,15 +18,15 @@ struct Vertex{
   glm::vec2 texCoord;
 
 
-  static std::array<vk::VertexInputBindingDescription, 1> getBindingDescription(){
-    std::array<vk::VertexInputBindingDescription, 1> bindingDescriptions{};
+  static auto getBindingDescription(){
+    std::vector<vk::VertexInputBindingDescription> bindingDescriptions(1);
     bindingDescriptions[0].binding = 0;
     bindingDescriptions[0].stride = sizeof(Vertex);
     bindingDescriptions[0].inputRate = vk::VertexInputRate::eVertex;
     return bindingDescriptions;
   }
-  static std::array<vk::VertexInputAttributeDescription, 3> getAttributeDescriptions(){
-    std::array<vk::VertexInputAttributeDescription, 3> attributeDescriptions{};
+  static auto getAttributeDescriptions(){
+    std::vector<vk::VertexInputAttributeDescription> attributeDescriptions(3);
     attributeDescriptions[0].binding = 0;
     attributeDescriptions[0].location = 0;
     attributeDescriptions[0].format = vk::Format::eR32G32B32Sfloat;

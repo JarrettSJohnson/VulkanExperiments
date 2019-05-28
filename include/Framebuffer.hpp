@@ -2,111 +2,40 @@
 
 #include "Device.hpp"
 #include "VKUtil.hpp"
-
-/*class Attachment
-{
-public:
-  enum class AttachmentType { COLOR, DEPTHSTENCIL };
-
-  Attachment(AttachmentType aType, vk::Format format,
-      vk::SampleCountFlagBits numSamples = vk::SampleCountFlagBits::e1)
-      : m_aType{aType}
-  {
-    m_attachment.format = format;
-    m_attachment.samples = numSamples;
-    m_attachment.loadOp = vk::AttachmentLoadOp::eClear;
-    m_attachment.storeOp = vk::AttachmentStoreOp::eStore;
-    m_attachment.stencilLoadOp = vk::AttachmentLoadOp::eDontCare;
-    m_attachment.stencilStoreOp = vk::AttachmentStoreOp::eDontCare;
-    m_attachment.initialLayout = vk::ImageLayout::eUndefined;
-    m_attachment.finalLayout = vk::ImageLayout::eColorAttachmentOptimal;
-  }
-
-  vk::AttachmentReference reference() const
-  {
-    vk::AttachmentReference reference{};
-    reference.layout = m_attachment.finalLayout;
-    return reference;
-  }
-
-  const vk::AttachmentDescription attachment() const { return m_attachment; }
-
-private:
-};*/
+#include <optional>
 
 struct FrameBufferAttachmentInfo {
-  std::uint32_t width, height;
-  std::uint32_t layerCount;
+  vk::Extent2D extent;
+  std::uint32_t layerCount{1};
   vk::Format format;
   vk::ImageUsageFlags usage;
-  vk::SampleCountFlagBits numSamples;
+  vk::SampleCountFlagBits numSamples{vk::SampleCountFlagBits::e1};
+  bool isResolve{false};
+  bool presented{false};
 };
 
 struct FramebufferAttachment {
   vk::AttachmentDescription description{};
   vk::ImageLayout layout{};
-  vk::Format format{};
   vk::Extent3D extent{};
   vk::UniqueImage image{};
   vk::UniqueImageView imageView{};
   vk::UniqueDeviceMemory memory{};
+  bool isResolve{};
 };
 
-/*class FrameBufferAttachment
+class RenderPass
 {
 public:
-  FrameBufferAttachment(Device& device, vk::ImageLayout layout,
-      vk::Format format, vk::ImageUsageFlagBits usageFlagBits,
-      vk::ImageAspectFlagBits aspectFlagBits, vk::Extent2D extent,
-      vk::SampleCountFlagBits numSamples = vk::SampleCountFlagBits::e1)
-      : m_layout{layout}, m_format{format}
-  {
-    vk::Extent3D fboExtent{extent.width, extent.height, 1};
-    std::tie(m_image, m_memory) = VKUtil::createImage(device, fboExtent, 1,
-        numSamples, m_format, vk::ImageTiling::eOptimal, usageFlagBits,
-        vk::MemoryPropertyFlagBits::eDeviceLocal);
-
-    m_imageView = VKUtil::createImageView(
-        device.device(), *m_image, m_format, aspectFlagBits, 1);
-
-    VKUtil::transitionImageLayout(
-        device, *m_image, m_format, vk::ImageLayout::eUndefined, m_layout, 1);
-  }
-
-  vk::ImageView imageView() const { return *m_imageView; }
-  std::pair<int, int> size() const
-  {
-    return std::make_pair(m_extent.width, m_extent.height);
-  }
-
-private:
-  vk::AttachmentDescription m_attachment{};
-  vk::ImageLayout m_layout{};
-  vk::Format m_format{};
-  vk::Extent3D m_extent{};
-  vk::UniqueImage m_image{};
-  vk::UniqueImageView m_imageView{};
-  vk::UniqueDeviceMemory m_memory{};
-};*/
-
-class Framebuffer
-{
-public:
-  Framebuffer(Device& device, vk::RenderPass renderPass)
-      : m_device{device}, m_renderPass{renderPass}
-  {
-  }
-
-  // void addAttachment(FrameBufferAttachment&& attachment)
-  //{
-  // m_attachments.push_back(std::move(attachment));
-  //}
-
+  RenderPass() = default;
+  RenderPass(Device& device) : m_device{device} {}
   FramebufferAttachment& addAttachment(FrameBufferAttachmentInfo fbAttInfo)
   {
     auto& attachment = m_attachments.emplace_back();
-
-    attachment.format = fbAttInfo.format;
+    attachment.extent =
+        vk::Extent3D{fbAttInfo.extent.width, fbAttInfo.extent.height, 1};
+    attachment.description.format = fbAttInfo.format;
+    attachment.isResolve = fbAttInfo.isResolve;
 
     vk::ImageAspectFlags aspectFlag{};
 
@@ -114,77 +43,95 @@ public:
       aspectFlag = vk::ImageAspectFlagBits::eColor;
     } else if (fbAttInfo.usage &
                vk::ImageUsageFlagBits::eDepthStencilAttachment) {
-      if (VKUtil::hasDepthComponent(attachment.format)) {
+      if (VKUtil::hasDepthComponent(attachment.description.format)) {
         aspectFlag = vk::ImageAspectFlagBits::eDepth;
       }
 
-      if (VKUtil::hasStencilComponent(attachment.format)) {
+      if (VKUtil::hasStencilComponent(attachment.description.format)) {
         aspectFlag = vk::ImageAspectFlagBits::eStencil;
       }
     }
 
-    int miplevels = 1;
-    vk::Extent3D fboExtent{fbAttInfo.width, fbAttInfo.height, 1};
-    std::tie(attachment.image, attachment.memory) =
-        VKUtil::createImage(m_device, fboExtent, miplevels,
-            fbAttInfo.numSamples,
-            attachment.format, vk::ImageTiling::eOptimal, fbAttInfo.usage,
-            vk::MemoryPropertyFlagBits::eDeviceLocal);
-
-    attachment.imageView = VKUtil::createImageView(
-        m_device.device(), *attachment.image, attachment.format, aspectFlag, 1);
-
-    attachment.description.samples = vk::SampleCountFlagBits::e1;
-    attachment.description.loadOp = vk::AttachmentLoadOp::eClear;
-    attachment.description.storeOp =
-        (fbAttInfo.usage & vk::ImageUsageFlagBits::eSampled)
-            ? vk::AttachmentStoreOp::eStore
-            : vk::AttachmentStoreOp::eDontCare;
     attachment.description.format = fbAttInfo.format;
-    attachment.description.initialLayout = vk::ImageLayout::eUndefined;
-    if (VKUtil::hasDepthComponent(attachment.format) ||
-        VKUtil::hasStencilComponent(attachment.format)) {
-      attachment.description.finalLayout =
-          vk::ImageLayout::eDepthAttachmentStencilReadOnlyOptimal;
+
+	if (fbAttInfo.isResolve) {
+      attachment.description.loadOp = vk::AttachmentLoadOp::eDontCare;
     } else {
-      attachment.description.finalLayout =
-          vk::ImageLayout::eShaderReadOnlyOptimal;
+      attachment.description.loadOp = vk::AttachmentLoadOp::eClear;
+	}
+
+    if (!fbAttInfo.presented) {
+
+      attachment.description.samples = fbAttInfo.numSamples;
+      
+      // attachment.description.storeOp =
+      //    (fbAttInfo.usage & vk::ImageUsageFlagBits::eSampled)
+      //        ? vk::AttachmentStoreOp::eStore
+      //       : vk::AttachmentStoreOp::eDontCare;
+      // attachment.description.storeOp = vk::AttachmentStoreOp::eStore;
+      attachment.description.stencilLoadOp = vk::AttachmentLoadOp::eDontCare;
+      attachment.description.stencilStoreOp = vk::AttachmentStoreOp::eDontCare;
+      attachment.description.initialLayout = vk::ImageLayout::eUndefined;
+
+      int miplevels = 1;
+      vk::Extent3D fboExtent{
+          fbAttInfo.extent.width, fbAttInfo.extent.height, 1};
+      std::tie(attachment.image, attachment.memory) = VKUtil::createImage(
+          m_device, fboExtent, miplevels, fbAttInfo.numSamples,
+          attachment.description.format, vk::ImageTiling::eOptimal,
+          fbAttInfo.usage, vk::MemoryPropertyFlagBits::eDeviceLocal);
+
+      attachment.imageView = VKUtil::createImageView(m_device.device(),
+          *attachment.image, attachment.description.format, aspectFlag, 1);
+
+      if (VKUtil::hasDepthComponent(attachment.description.format) ||
+          VKUtil::hasStencilComponent(attachment.description.format)) {
+        attachment.description.storeOp = vk::AttachmentStoreOp::eDontCare;
+        attachment.description.finalLayout =
+            vk::ImageLayout::eDepthStencilAttachmentOptimal;
+      } else {
+        attachment.description.storeOp = vk::AttachmentStoreOp::eStore;
+        attachment.description.finalLayout =
+            vk::ImageLayout::eColorAttachmentOptimal;
+        if (fbAttInfo.isResolve) {
+          attachment.description.finalLayout =
+              vk::ImageLayout::eShaderReadOnlyOptimal;
+        }
+      }
+      VKUtil::transitionImageLayout(m_device, *attachment.image,
+          attachment.description.format, attachment.description.initialLayout,
+          attachment.description.finalLayout, 1);
+    } else {
+
+      attachment.description.samples = vk::SampleCountFlagBits::e1;
+      attachment.description.loadOp = vk::AttachmentLoadOp::eDontCare;
+      attachment.description.storeOp = vk::AttachmentStoreOp::eStore;
+
+      attachment.description.initialLayout = vk::ImageLayout::eUndefined;
+      attachment.description.finalLayout = vk::ImageLayout::ePresentSrcKHR;
     }
     return attachment;
   }
-
-  /* vk::UniqueFramebuffer generateFramebuffer(Device& device)
-   {
-     std::vector<vk::ImageView> m_attachmentViews;
-     for (const auto& attachment : m_attachments) {
-       m_attachmentViews.push_back(attachment.imageView());
-     }
-     auto [width, height] = m_attachments.front().size();
-
-     vk::FramebufferCreateInfo framebufferCreateInfo{};
-     framebufferCreateInfo.renderPass = m_renderPass;
-     framebufferCreateInfo.attachmentCount =
-         static_cast<std::uint32_t>(m_attachmentViews.size());
-     framebufferCreateInfo.pAttachments = m_attachmentViews.data();
-     framebufferCreateInfo.width = width;
-     framebufferCreateInfo.height = height;
-     framebufferCreateInfo.layers = 1;
-     return device.device().createFramebufferUnique(framebufferCreateInfo);
-   }*/
-
   void generate()
   {
 
     std::vector<vk::AttachmentReference> colorReferences;
-    vk::AttachmentReference depthReference;
+    std::optional<vk::AttachmentReference> depthReference;
+    std::optional<vk::AttachmentReference> resolveReference;
     bool hasDepth = false;
     bool hasStencil = false;
 
     std::uint32_t attIdx{0u};
     for (auto& attachment : m_attachments) {
-      if (VKUtil::hasDepthStencilComponent(attachment.format)) {
-        depthReference.attachment = attIdx;
-        depthReference.layout =
+      if (attachment.isResolve) {
+        resolveReference = vk::AttachmentReference{};
+        resolveReference->attachment = attIdx;
+        resolveReference->layout = vk::ImageLayout::eColorAttachmentOptimal;
+      } else if (VKUtil::hasDepthStencilComponent(
+                     attachment.description.format)) {
+        depthReference = vk::AttachmentReference{};
+        depthReference->attachment = attIdx;
+        depthReference->layout =
             vk::ImageLayout::eDepthAttachmentStencilReadOnlyOptimal;
         hasDepth = true;
       } else {
@@ -196,6 +143,12 @@ public:
 
     vk::SubpassDescription subpassDescription{};
     subpassDescription.pipelineBindPoint = vk::PipelineBindPoint::eGraphics;
+    subpassDescription.colorAttachmentCount = static_cast<std::uint32_t>(colorReferences.size());
+    subpassDescription.pColorAttachments = colorReferences.data();
+    subpassDescription.pDepthStencilAttachment =
+        depthReference.has_value() ? &depthReference.value() : nullptr;
+    subpassDescription.pResolveAttachments =
+        resolveReference.has_value() ? &resolveReference.value() : nullptr;
     std::vector<vk::AttachmentDescription> attachments;
     for (auto& attachment : m_attachments) {
       attachments.push_back(attachment.description);
@@ -234,35 +187,61 @@ public:
     renderPassCreateInfo.pAttachments = attachments.data();
     renderPassCreateInfo.subpassCount = 1;
     renderPassCreateInfo.pSubpasses = &subpassDescription;
-    renderPassCreateInfo.dependencyCount = (uint32_t) subpassDependency.size();
+    renderPassCreateInfo.dependencyCount =
+        static_cast<std::uint32_t>(subpassDependency.size());
     renderPassCreateInfo.pDependencies = subpassDependency.data();
 
-    auto renderPass =
+    m_renderPass =
         m_device.device().createRenderPassUnique(renderPassCreateInfo);
+  }
+  vk::RenderPass renderpass() const { return *m_renderPass; }
+  const auto& attachments() const { return m_attachments; }
+  void clear() { m_attachments.clear(); }
+  private:
+  Device& m_device;
+  std::vector<FramebufferAttachment> m_attachments;
+  vk::UniqueRenderPass m_renderPass{};
+};
+
+class Framebuffer
+{
+public:
+  Framebuffer(Device& device, RenderPass& renderpass)
+      : m_device{device}, m_renderPass{renderpass}
+  {
+  }
+
+  void generate(std::optional<vk::ImageView> additionalImageView = std::nullopt)
+  {
 
     // FRAME BUFFER
     std::vector<vk::ImageView> attachmentViews;
-    for (const auto& attachment : m_attachments) {
+    for (const auto& attachment : m_renderPass.attachments()) {
       attachmentViews.push_back(*attachment.imageView);
     }
+    if (additionalImageView) {
+      attachmentViews.back() = additionalImageView.value();
+    }
 
-    auto extent = m_attachments.front().extent;
+    auto extent = m_renderPass.attachments().front().extent;
 
     vk::FramebufferCreateInfo framebufferCreateInfo{};
-    framebufferCreateInfo.renderPass = m_renderPass;
+    framebufferCreateInfo.renderPass = m_renderPass.renderpass();
     framebufferCreateInfo.attachmentCount = (uint32_t) attachmentViews.size();
     framebufferCreateInfo.pAttachments = attachmentViews.data();
     framebufferCreateInfo.width = extent.width;
     framebufferCreateInfo.height = extent.height;
     framebufferCreateInfo.layers = 1; // todo
-    vk::UniqueFramebuffer framebuffer =
+    m_framebuffer =
         m_device.device().createFramebufferUnique(framebufferCreateInfo);
   }
 
-  void clear() { m_attachments.clear(); }
+  vk::Framebuffer framebuffer() const { return *m_framebuffer; }
 
 private:
   Device& m_device;
-  std::vector<FramebufferAttachment> m_attachments;
-  vk::RenderPass m_renderPass{};
+  // std::vector<FramebufferAttachment> m_attachments;
+  RenderPass& m_renderPass;
+  // vk::UniqueRenderPass m_renderPass{};
+  vk::UniqueFramebuffer m_framebuffer{};
 };

@@ -84,40 +84,6 @@ void Application::createCommandPool()
       m_device.device().createCommandPoolUnique(commandPoolCreateInfo);
 }
 
-void Application::createColorResources()
-{
-  vk::Format format = m_swapchain.format();
-  vk::Extent3D extent = m_swapchain.extent3D();
-  std::tie(colorImage, colorImageMemory) = VKUtil::createImage(m_device, extent,
-      1, m_device.m_msaaSamples, format, vk::ImageTiling::eOptimal,
-      vk::ImageUsageFlagBits::eTransientAttachment |
-          vk::ImageUsageFlagBits::eColorAttachment,
-      vk::MemoryPropertyFlagBits::eDeviceLocal);
-
-  colorImageView = VKUtil::createImageView(
-      m_device, *colorImage, format, vk::ImageAspectFlagBits::eColor, 1);
-
-  VKUtil::transitionImageLayout(m_device, *colorImage, format,
-      vk::ImageLayout::eUndefined, vk::ImageLayout::eColorAttachmentOptimal, 1);
-}
-
-void Application::createDepthResources()
-{
-  vk::Format depthFormat = VKUtil::findDepthFormat(m_device);
-  vk::Extent3D extent = m_swapchain.extent3D();
-  std::tie(m_depthImage, m_depthImageMemory) = VKUtil::createImage(m_device,
-      extent, 1, m_device.m_msaaSamples, depthFormat, vk::ImageTiling::eOptimal,
-      vk::ImageUsageFlagBits::eDepthStencilAttachment,
-      vk::MemoryPropertyFlagBits::eDeviceLocal);
-
-  m_depthImageView = VKUtil::createImageView(
-      m_device, *m_depthImage, depthFormat, vk::ImageAspectFlagBits::eDepth, 1);
-
-  VKUtil::transitionImageLayout(m_device, *m_depthImage, depthFormat,
-      vk::ImageLayout::eUndefined,
-      vk::ImageLayout::eDepthStencilAttachmentOptimal, 1);
-}
-
 void Application::generateMipmaps(vk::Image image, vk::Format format,
     std::uint32_t texWidth, std::uint32_t texHeight, uint32_t mipLevels)
 {
@@ -191,12 +157,8 @@ void Application::generateMipmaps(vk::Image image, vk::Format format,
   VKUtil::endSingleTimeCommands(commandBuffer, m_device.m_graphicsQueue);
 }
 
-void Application::createUniformBuffers()
-{
-  m_UBOs.reserve(m_swapchain.size());
-  for (int i = 0; i < m_swapchain.size(); ++i) {
-    m_UBOs.emplace_back(m_device, vk::ShaderStageFlagBits::eVertex);
-  }
+void Application::createUniformBuffers(){
+  m_UBO = std::make_unique<UBO<LightUniforms>>(m_device, vk::ShaderStageFlagBits::eVertex);
 }
 
 void Application::allocateCommandBuffers()
@@ -216,173 +178,160 @@ void Application::setupCommandBuffers(
 {
   std::size_t i = currentFrame;
 
-  // for (std::size_t i{0u}; i < m_commandBuffers.size(); ++i) {
   m_commandBuffers[i]->reset(vk::CommandBufferResetFlagBits::eReleaseResources);
   vk::CommandBufferBeginInfo commandBufferBeginInfo{};
   commandBufferBeginInfo.flags =
       vk::CommandBufferUsageFlagBits::eSimultaneousUse;
 
+  m_commandBuffers[i]->begin(commandBufferBeginInfo);
+
+    // BEGIN OFFSCREEN RENDER PASS
   vk::RenderPassBeginInfo renderPassBeginInfo{};
-  renderPassBeginInfo.renderPass = *m_renderPass;
-  renderPassBeginInfo.framebuffer = *m_framebuffers[i];
+  renderPassBeginInfo.renderPass = offscreenRenderPass->renderpass();
+  renderPassBeginInfo.framebuffer = offscreenFB->framebuffer();
   renderPassBeginInfo.renderArea.offset = {0, 0};
   renderPassBeginInfo.renderArea.extent = m_swapchain.extent();
 
-  std::array<float, 4> clearcolorvalues{0.0f, 0.0f, 0.0f, 1.0f};
   std::array<vk::ClearValue, 2> clearValues{};
-  clearValues[0].color = clearcolorvalues;
+  clearValues[0].color = std::array{0.0f, 0.0f, 0.0f, 1.0f};
   clearValues[1].depthStencil = {1.0f, 0};
   renderPassBeginInfo.clearValueCount =
       static_cast<std::uint32_t>(clearValues.size());
   renderPassBeginInfo.pClearValues = clearValues.data();
 
-  m_commandBuffers[i]->begin(commandBufferBeginInfo);
   m_commandBuffers[i]->beginRenderPass(
       renderPassBeginInfo, vk::SubpassContents::eInline);
   m_commandBuffers[i]->bindPipeline(
-      vk::PipelineBindPoint::eGraphics, m_graphicsPipeline.pipeline());
+      vk::PipelineBindPoint::eGraphics, offscreenPipeline.pipeline());
 
-
-
-  // vk::Buffer vertexBuffers[] = {m_model.vertexBuffer()};
   vk::DeviceSize offsets[] = {0};
   for (auto& buffer : buffers) {
     m_commandBuffers[i]->bindVertexBuffers(0, 1, &buffer.vBuffer, offsets);
     m_commandBuffers[i]->bindIndexBuffer(
-        // m_model.indexBuffer(), 0, vk::IndexType::eUint32);
         buffer.iBuffer, 0, vk::IndexType::eUint32);
+    const auto& offscreenDS = offscreenDescriptorSets.descriptorSets();
     m_commandBuffers[i]->bindDescriptorSets(vk::PipelineBindPoint::eGraphics,
-        m_graphicsPipeline.layout(), 0, 1, &m_descriptorSets[i], 0, nullptr);
-    m_commandBuffers[i]->pushConstants(m_graphicsPipeline.layout(),
-        vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment, 0, sizeof(buffer.pushConstants),
-        &buffer.pushConstants);
+        offscreenPipelineLayout.layout(), 0, static_cast<std::uint32_t>(offscreenDS.size()),
+        offscreenDS.data(), 0,
+        nullptr);
+    m_commandBuffers[i]->pushConstants(offscreenPipelineLayout.layout(),
+        vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment,
+        0, sizeof(buffer.pushConstants), &buffer.pushConstants);
     m_commandBuffers[i]->drawIndexed(
-        // static_cast<std::uint32_t>(m_model.indices().size()), 1, 0, 0, 0);
         buffer.numIndices, 1, 0, 0, 0);
   }
   m_commandBuffers[i]->endRenderPass();
+
+//VKUtil::transitionImageLayout(m_device,
+  //    *offscreenRenderPass->attachments().back().image, m_swapchain.format(),
+ //     vk::ImageLayout::eUndefined, vk::ImageLayout::eShaderReadOnlyOptimal, 1);
+
+  //BEGIN DEFAULT/FULLSCREEN RENDER PASS
+  renderPassBeginInfo.renderPass = m_renderPass->renderpass();
+  renderPassBeginInfo.framebuffer = m_framebuffers[i].framebuffer();
+  m_commandBuffers[i]->beginRenderPass(
+      renderPassBeginInfo, vk::SubpassContents::eInline);
+  m_commandBuffers[i]->bindPipeline(
+      vk::PipelineBindPoint::eGraphics, m_graphicsPipeline.pipeline());
+  const auto& defaultDS = m_DescriptorSet[i].descriptorSets();
+  m_commandBuffers[i]->bindDescriptorSets(vk::PipelineBindPoint::eGraphics,
+      m_graphicsPipelineLayout.layout(), 0, static_cast<std::uint32_t>(defaultDS.size()),
+	  defaultDS.data(), 0,
+      nullptr);///
+  m_commandBuffers[i]->draw(3, 1, 0, 0);
+  m_commandBuffers[i]->endRenderPass();
+
   m_commandBuffers[i]->end();
-  //  }
 }
 
 void Application::createRenderPass()
 {
-  vk::AttachmentDescription colorAttachment;
-  colorAttachment.format = m_swapchain.format();
-  colorAttachment.samples = m_device.m_msaaSamples;
-  colorAttachment.loadOp = vk::AttachmentLoadOp::eClear;
-  colorAttachment.storeOp = vk::AttachmentStoreOp::eStore;
-  colorAttachment.stencilLoadOp = vk::AttachmentLoadOp::eDontCare;
-  colorAttachment.stencilStoreOp = vk::AttachmentStoreOp::eDontCare;
-  colorAttachment.initialLayout = vk::ImageLayout::eUndefined;
-  colorAttachment.finalLayout = vk::ImageLayout::eColorAttachmentOptimal;
 
-  vk::AttachmentReference colorAttachmentRef{};
-  colorAttachmentRef.attachment = 0;
-  colorAttachmentRef.layout = vk::ImageLayout::eColorAttachmentOptimal;
+  offscreenRenderPass = std::make_unique<RenderPass>(m_device);
 
-  vk::AttachmentDescription depthAttachment;
-  depthAttachment.format = VKUtil::findDepthFormat(m_device);
-  depthAttachment.samples = m_device.m_msaaSamples;
-  depthAttachment.loadOp = vk::AttachmentLoadOp::eClear;
-  depthAttachment.storeOp = vk::AttachmentStoreOp::eDontCare;
-  depthAttachment.stencilLoadOp = vk::AttachmentLoadOp::eDontCare;
-  depthAttachment.stencilStoreOp = vk::AttachmentStoreOp::eDontCare;
-  depthAttachment.initialLayout = vk::ImageLayout::eUndefined;
-  depthAttachment.finalLayout = vk::ImageLayout::eDepthStencilAttachmentOptimal;
+  FrameBufferAttachmentInfo colorAttachInfo{};
+  colorAttachInfo.extent = m_swapchain.extent();
+  colorAttachInfo.format = m_swapchain.format();
+  colorAttachInfo.numSamples = m_device.m_msaaSamples;
+  colorAttachInfo.usage = vk::ImageUsageFlagBits::eTransientAttachment |
+                          vk::ImageUsageFlagBits::eColorAttachment;
 
-  vk::AttachmentReference depthAttachmentRef{};
-  depthAttachmentRef.attachment = 1;
-  depthAttachmentRef.layout = vk::ImageLayout::eDepthStencilAttachmentOptimal;
+  FrameBufferAttachmentInfo depthAttachInfo{};
+  depthAttachInfo.extent = m_swapchain.extent();
+  depthAttachInfo.format = VKUtil::findDepthFormat(m_device);
+  depthAttachInfo.numSamples = m_device.m_msaaSamples;
+  depthAttachInfo.usage = vk::ImageUsageFlagBits::eDepthStencilAttachment;
 
-  vk::AttachmentDescription resolveAttachment{};
-  resolveAttachment.format = m_swapchain.format();
-  resolveAttachment.samples = vk::SampleCountFlagBits::e1;
-  resolveAttachment.loadOp = vk::AttachmentLoadOp::eDontCare;
-  resolveAttachment.storeOp = vk::AttachmentStoreOp::eStore;
-  resolveAttachment.stencilLoadOp = vk::AttachmentLoadOp::eDontCare;
-  resolveAttachment.stencilStoreOp = vk::AttachmentStoreOp::eDontCare;
-  resolveAttachment.initialLayout = vk::ImageLayout::eUndefined;
-  resolveAttachment.finalLayout = vk::ImageLayout::ePresentSrcKHR;
+  FrameBufferAttachmentInfo resolveAttachInfo{};
+  resolveAttachInfo.extent = m_swapchain.extent();
+  resolveAttachInfo.format = m_swapchain.format();
+  resolveAttachInfo.usage = vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eSampled;
+  resolveAttachInfo.isResolve = true;
 
-  vk::AttachmentReference resolveRef{};
-  resolveRef.attachment = 2;
-  resolveRef.layout = vk::ImageLayout::eColorAttachmentOptimal;
+  offscreenRenderPass->addAttachment(colorAttachInfo);
+  offscreenRenderPass->addAttachment(depthAttachInfo);
+  offscreenRenderPass->addAttachment(resolveAttachInfo);
+  offscreenRenderPass->generate();
 
-  vk::SubpassDescription subpassDescription{};
-  subpassDescription.pipelineBindPoint = vk::PipelineBindPoint::eGraphics;
-  subpassDescription.colorAttachmentCount = 1;
-  subpassDescription.pColorAttachments = &colorAttachmentRef;
-  subpassDescription.pDepthStencilAttachment = &depthAttachmentRef;
-  subpassDescription.pResolveAttachments = &resolveRef;
+  m_renderPass = std::make_unique<RenderPass>(m_device);
 
-  std::array<vk::SubpassDependency, 2> subpassDependency{};
+  FrameBufferAttachmentInfo defaultColorAttachInfo{};
+  defaultColorAttachInfo.extent = m_swapchain.extent();
+  defaultColorAttachInfo.format = m_swapchain.format();
+  defaultColorAttachInfo.numSamples = vk::SampleCountFlagBits::e1;
+  defaultColorAttachInfo.usage = vk::ImageUsageFlagBits::eTransientAttachment |
+                          vk::ImageUsageFlagBits::eColorAttachment;
+  defaultColorAttachInfo.presented = true;
+  m_renderPass->addAttachment(defaultColorAttachInfo);
 
-  subpassDependency[0].srcSubpass = VK_SUBPASS_EXTERNAL;
-  subpassDependency[0].dstSubpass = 0;
-  subpassDependency[0].srcStageMask = vk::PipelineStageFlagBits::eBottomOfPipe;
-  subpassDependency[0].dstStageMask =
-      vk::PipelineStageFlagBits::eColorAttachmentOutput;
-  subpassDependency[0].srcAccessMask = vk::AccessFlagBits::eMemoryRead;
-  subpassDependency[0].dstAccessMask =
-      vk::AccessFlagBits::eColorAttachmentRead |
-      vk::AccessFlagBits::eColorAttachmentWrite;
-  subpassDependency[0].dependencyFlags = vk::DependencyFlagBits::eByRegion;
-
-  subpassDependency[1].srcSubpass = 0;
-  subpassDependency[1].dstSubpass = VK_SUBPASS_EXTERNAL;
-  subpassDependency[1].srcStageMask =
-      vk::PipelineStageFlagBits::eColorAttachmentOutput;
-  subpassDependency[1].dstStageMask = vk::PipelineStageFlagBits::eBottomOfPipe;
-  subpassDependency[1].srcAccessMask =
-      vk::AccessFlagBits::eColorAttachmentRead |
-      vk::AccessFlagBits::eColorAttachmentWrite;
-  subpassDependency[1].dstAccessMask = vk::AccessFlagBits::eMemoryRead;
-  subpassDependency[1].dependencyFlags = vk::DependencyFlagBits::eByRegion;
-
-  std::array<vk::AttachmentDescription, 3> attachments{
-      colorAttachment, depthAttachment, resolveAttachment};
-
-  vk::RenderPassCreateInfo renderPassCreateInfo{};
-  renderPassCreateInfo.attachmentCount =
-      static_cast<std::uint32_t>(attachments.size());
-  renderPassCreateInfo.pAttachments = attachments.data();
-  renderPassCreateInfo.subpassCount = 1;
-  renderPassCreateInfo.pSubpasses = &subpassDescription;
-  renderPassCreateInfo.dependencyCount = (uint32_t) subpassDependency.size();
-  renderPassCreateInfo.pDependencies = subpassDependency.data();
-
-  m_renderPass = m_device.device().createRenderPassUnique(renderPassCreateInfo);
+  m_renderPass->generate();
+  int x = 4;
 }
 
 void Application::createPipeline()
 {
-  Shader vertShader{
+  Shader offscreenVertShader{
       m_device, "../assets/test.vert.spv", Shader::ShaderType::VERTEX};
-  Shader fragShader{
+  Shader offscreenFragShader{
       m_device, "../assets/test.frag.spv", Shader::ShaderType::FRAGMENT};
-  m_graphicsPipeline = Pipeline{m_device, m_swapchain, *m_renderPass,
-      *m_descriptorSetLayout, vertShader, fragShader};
+  vk::PushConstantRange pushConstantRange{};
+  pushConstantRange.stageFlags =
+      vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment;
+  pushConstantRange.size = sizeof(PushConstants);
+
+  offscreenPipelineLayout = PipelineLayout{
+      m_device, m_swapchain, offscreenDescriptorSets.layout(), pushConstantRange};
+  offscreenPipeline = Pipeline{m_device, m_swapchain.extent(), m_device.m_msaaSamples};
+  offscreenPipeline.addVertexDescription<Vertex>();
+  offscreenPipeline.generate(m_device, offscreenPipelineLayout,
+      *offscreenRenderPass, offscreenVertShader, offscreenFragShader);
+
+
+  Shader vertShader{
+      m_device, "../assets/fullscreen.vert.spv", Shader::ShaderType::VERTEX};
+  Shader fragShader{
+      m_device, "../assets/fullscreen.frag.spv", Shader::ShaderType::FRAGMENT};
+  m_graphicsPipelineLayout = PipelineLayout{m_device, m_swapchain, m_DescriptorSet.front().layout()};
+  m_graphicsPipeline =
+      Pipeline{m_device, m_swapchain.extent(), vk::SampleCountFlagBits::e1};
+  m_graphicsPipeline.changeRasterizationFullscreenTriangle();
+  m_graphicsPipeline.generate(
+      m_device, m_graphicsPipelineLayout, *m_renderPass, vertShader, fragShader);
+  int x = 5;
+  
 }
 
 void Application::createFramebuffers()
 {
-  m_framebuffers.resize(m_swapchain.size());
+  offscreenFB = std::make_unique<Framebuffer>(m_device, *offscreenRenderPass);
+  offscreenFB->generate();
+
+  m_framebuffers.emplace_back(m_device, *m_renderPass);
+  m_framebuffers.emplace_back(m_device, *m_renderPass);
 
   for (std::size_t i{0u}; i < m_framebuffers.size(); ++i) {
-    std::array<vk::ImageView, 3> attachments = {
-        *colorImageView, *m_depthImageView, m_swapchain.imageView(i)};
-
-    vk::FramebufferCreateInfo framebufferCreateInfo{};
-    framebufferCreateInfo.renderPass = *m_renderPass;
-    framebufferCreateInfo.attachmentCount =
-        static_cast<std::uint32_t>(attachments.size());
-    framebufferCreateInfo.pAttachments = attachments.data();
-    framebufferCreateInfo.width = m_swapchain.extent().width;
-    framebufferCreateInfo.height = m_swapchain.extent().height;
-    framebufferCreateInfo.layers = 1;
-    m_framebuffers[i] =
-        m_device.device().createFramebufferUnique(framebufferCreateInfo);
+    auto& framebuffer = m_framebuffers[i];
+    framebuffer.generate(m_swapchain.imageView(i));
   }
 }
 
@@ -524,43 +473,45 @@ void Application::run()
   m_model = Model{m_device, "../assets/cat.obj"};
 
   CubedLight light{m_device};
-  //light.light.pos = glm::vec3(0.0f, 0.0f, 0.0f);
+  // light.light.pos = glm::vec3(0.0f, 0.0f, 0.0f);
   light.light.pos = glm::vec3(3.0, 3.0, 3.0f);
   light.light.color = glm::vec3(1.0f, 1.0f, 1.0f);
   // std::vector<UBO<MVP>> mvps;
   // mvps.emplace_back(app.m_device, vk::ShaderStageFlagBits::eVertex);
   // mvps.emplace_back(app.m_device, vk::ShaderStageFlagBits::eVertex);
-  for (auto& ubo : m_UBOs) {
-    ubo = UBO<LightUniforms>{m_device, vk::ShaderStageFlagBits::eAllGraphics};
-  }
-  DescriptorSetLayout layout{static_cast<std::uint32_t>(m_swapchain.size())};
-  layout.addUBO(m_UBOs);
-  layout.addSampler(m_texture);
-  m_descriptorSetLayout = layout.generateLayout(m_device);
-  m_descriptorPool = layout.generatePool(m_device);
-  std::vector<vk::DescriptorSetLayout> layouts(
-      m_swapchain.size(), *m_descriptorSetLayout);
-  vk::DescriptorSetAllocateInfo allocateInfo{};
-  allocateInfo.descriptorPool = *m_descriptorPool;
-  allocateInfo.descriptorSetCount = static_cast<std::uint32_t>(layouts.size());
-  allocateInfo.pSetLayouts = layouts.data();
 
-  m_descriptorSets = m_device.device().allocateDescriptorSets(allocateInfo);
-  layout.updateDescriptors(m_device, m_descriptorSets);
+  m_UBO = std::make_unique<UBO<LightUniforms>>(m_device, vk::ShaderStageFlagBits::eAllGraphics);
+
+
   createRenderPass();
-  createPipeline();
 
-  createColorResources();
-  createDepthResources();
+  offscreenDescriptorSets.addUBO(*m_UBO);
+  offscreenDescriptorSets.addSampler(m_texture);
+  offscreenDescriptorSets.generateLayout(m_device);
+  offscreenDescriptorSets.generatePool(m_device);
+
+   vk::UniqueSampler offViewSampler = VKUtil::createTextureSampler(m_device);
+
+  m_DescriptorSet.resize(m_swapchain.size());
+  for (auto& descriptor : m_DescriptorSet) {
+    descriptor.addSampler(*offscreenRenderPass->attachments().back().imageView, *offViewSampler);
+    descriptor.generateLayout(m_device);
+    descriptor.generatePool(m_device);
+  }
+
+  createPipeline();
   createFramebuffers();
 
-  std::vector<Application::IndexInfo> vBuffers;
-  vBuffers.push_back({m_model.vertexBuffer(), m_model.indexBuffer(), m_model.numIndices()});
-  vBuffers.push_back({m_model.vertexBuffer(), m_model.indexBuffer(), m_model.numIndices()});
+  // offscreenRenderPass = std::make_unique<RenderPass>(m_device);
+  // offscreenRenderPass->addAttachment();
 
-  for (auto& ubo : m_UBOs) {
-    ubo.map();
-  }
+  std::vector<Application::IndexInfo> vBuffers;
+  vBuffers.push_back(
+      {m_model.vertexBuffer(), m_model.indexBuffer(), m_model.numIndices()});
+  vBuffers.push_back(
+      {m_model.vertexBuffer(), m_model.indexBuffer(), m_model.numIndices()});
+
+  m_UBO->map();
 
   allocateCommandBuffers();
   createSyncs();
@@ -575,8 +526,8 @@ void Application::run()
         currentTime - startTime)
                      .count();
 
-   // MVP ubo{};
-   // LightUniforms ubo{};
+    // MVP ubo{};
+    // LightUniforms ubo{};
     // ubo.model = glm::mat4(1.0f);
     auto model = glm::rotate(glm::mat4(1.0f), time * glm::radians(90.0f),
         glm::vec3(0.0f, 1.0f, 0.0f));
@@ -589,30 +540,31 @@ void Application::run()
     // ubo.model = glm::scale(
     //     ubo.model, glm::vec3(0.1, 0.1, 0.1));
     auto viewPos = glm::vec3(0.0, 0.0, 3.0);
-    auto view = glm::lookAt(viewPos,
-        glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+    auto view = glm::lookAt(
+        viewPos, glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
     auto proj = glm::perspective(glm::radians(45.0f),
         m_swapchain.extent().width / (float) m_swapchain.extent().height, 0.1f,
         10.0f);
     proj[1][1] *= -1;
-    //vBuffers[0].pushConstants.transform = proj * view * model;
-    //vBuffers[1].pushConstants.transform = proj * view * light.transform();
-    //vBuffers[0].pushConstants.lightPosition = light.light.pos;
-    //vBuffers[0].pushConstants.lightColor = light.light.color;
+    // vBuffers[0].pushConstants.transform = proj * view * model;
+    // vBuffers[1].pushConstants.transform = proj * view * light.transform();
+    // vBuffers[0].pushConstants.lightPosition = light.light.pos;
+    // vBuffers[0].pushConstants.lightColor = light.light.color;
     vBuffers[0].pushConstants.model = model;
     vBuffers[1].pushConstants.model = light.transform();
-    m_UBOs[currentFrame].get().projview = proj * view;
-    m_UBOs[currentFrame].get().viewPosition = glm::vec4(viewPos.x, viewPos.y, viewPos.z, 0.0f);
-    m_UBOs[currentFrame].get().lightPosition = glm::vec4(light.light.pos.x, light.light.pos.y, light.light.pos.z, 0.0f);
-    m_UBOs[currentFrame].get().lightColor = glm::vec4(light.light.color.r, light.light.color.g, light.light.color.b, 1.0f);
-	auto imageIdx = getImageIdx();
+    m_UBO->get().projview = proj * view;
+    m_UBO->get().viewPosition =
+        glm::vec4(viewPos.x, viewPos.y, viewPos.z, 0.0f);
+    m_UBO->get().lightPosition = glm::vec4(
+        light.light.pos.x, light.light.pos.y, light.light.pos.z, 0.0f);
+    m_UBO->get().lightColor = glm::vec4(
+        light.light.color.r, light.light.color.g, light.light.color.b, 1.0f);
+    auto imageIdx = getImageIdx();
     updateUniformBuffer(imageIdx);
     setupCommandBuffers(vBuffers, currentFrame);
     drawFrame(imageIdx);
     present(imageIdx);
   }
-  for (auto& ubo : m_UBOs) {
-    ubo.unmap();
-  }
+  m_UBO->unmap();
   m_device.device().waitIdle();
 }

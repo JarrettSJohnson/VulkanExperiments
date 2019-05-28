@@ -77,10 +77,21 @@ public:
 
   std::vector<vk::UniqueCommandBuffer> m_commandBuffers{};
 
+  std::unique_ptr<RenderPass> offscreenRenderPass{};
+  std::unique_ptr<Framebuffer> offscreenFB{};
+  PipelineLayout offscreenPipelineLayout{};
+  Pipeline offscreenPipeline{};
+  //vk::UniqueDescriptorSetLayout offscreenDescriptorSetLayout{};
+  
+  std::unique_ptr<RenderPass> m_renderPass{};
+  std::vector<Framebuffer> m_framebuffers{};
+  PipelineLayout m_graphicsPipelineLayout{};
   Pipeline m_graphicsPipeline{};
-  vk::UniqueRenderPass m_renderPass{};
-  vk::UniqueDescriptorSetLayout m_descriptorSetLayout{};
-  std::vector<vk::UniqueFramebuffer> m_framebuffers{};
+ // vk::UniqueDescriptorSetLayout m_descriptorSetLayout{};
+
+  
+
+
   std::array<vk::UniqueSemaphore, framesInFlight> m_drawSemaphores{};
   std::array<vk::UniqueSemaphore, framesInFlight> m_presentSemaphores{};
   std::array<vk::UniqueFence, framesInFlight> m_fences{};
@@ -93,25 +104,21 @@ public:
   const bool enableValidationLayers = true;
 #endif
 
-  //std::vector<UBO<MVP>> m_UBOs;
-
   Model m_model;
-
-  vk::UniqueImage m_depthImage{};
-  vk::UniqueDeviceMemory m_depthImageMemory{};
-  vk::UniqueImageView m_depthImageView{};
-
-  vk::UniqueImage colorImage{};
-  vk::UniqueDeviceMemory colorImageMemory{};
-  vk::UniqueImageView colorImageView{};
 
   std::uint32_t m_mipLevels{};
 
   Texture m_texture{};
-  // vk::UniqueSampler m_textureSampler;
 
-  vk::UniqueDescriptorPool m_descriptorPool{};
-  std::vector<vk::DescriptorSet> m_descriptorSets{};
+  DescriptorSet offscreenDescriptorSets{};
+  //TODO: generate takes a size for blah blah swapchain
+  std::vector<DescriptorSet> m_DescriptorSet{}; // 2?
+
+  /*vk::UniqueDescriptorPool offscreenDescriptorPool{};
+  std::vector<vk::DescriptorSet> offscreenDescriptorSets{};
+
+  vk::UniqueDescriptorPool m_DescriptorPool{};
+  std::vector<vk::DescriptorSet> m_DescriptorSets{};*/
 
 public:
   static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
@@ -176,6 +183,7 @@ public:
   void createDescriptorSetLayout();
   void createPipeline();
   void createFramebuffers();
+  void createFramebuffers2();
   void createCommandPool();
   void createColorResources();
   void createDepthResources();
@@ -185,13 +193,13 @@ public:
   void updateUniformBuffer(uint32_t currentImage)
   {
     //VKUtil::transferToGPU(m_device, *m_UBOs[currentImage].m_memory, newUBOT);
-    m_UBOs[currentImage].copyData();
+    m_UBO->copyData();
   }
   void createUniformBuffers();
   void createDescriptorPool();
   void createDescriptorSets();
   // void createCommandBuffers();
-  std::vector<UBO<LightUniforms>> m_UBOs;
+  std::unique_ptr<UBO<LightUniforms>> m_UBO;
   struct IndexInfo {
     vk::Buffer vBuffer{};
     vk::Buffer iBuffer{};

@@ -6,14 +6,14 @@
 
 #include "Device.hpp"
 
-#include "VKUtil.hpp"
 #include "Texture.hpp"
+#include "VKUtil.hpp"
 
 struct MVP {
-  //glm::mat4 model =
-  //    
-  //glm::mat4 view;
-  //glm::mat4 proj;
+  // glm::mat4 model =
+  //
+  // glm::mat4 view;
+  // glm::mat4 proj;
   glm::mat4 mvp = glm::mat4(1.0f);
 };
 
@@ -43,22 +43,20 @@ public:
   {
     if (mappedMem) {
       m_device.unmapMemory(*m_memory);
-	}
+    }
     mappedMem = nullptr;
   }
-  void copyData()
-  {
-    std::memcpy(mappedMem, &m_ubo, sizeof(type));
-  };
+  void copyData() { std::memcpy(mappedMem, &m_ubo, sizeof(type)); };
+  vk::Buffer buffer() const { return *m_buffer; }
 };
 
-class DescriptorSetLayout
+class DescriptorSet
 {
 public:
   struct UBODescriptorItem {
     vk::DescriptorSetLayoutBinding binding;
-    std::vector<vk::Buffer> buffers;
-    vk::DeviceSize size{};
+    vk::Buffer buffer;
+    vk::DeviceSize size;
     std::uint32_t idx;
   };
   struct SamplerDescriptorItem {
@@ -69,10 +67,7 @@ public:
   };
 
 public:
-  DescriptorSetLayout(std::uint32_t swapchainsize)
-      : m_swapchainSize{swapchainsize}
-  {
-  }
+  DescriptorSet() = default;
   /*template <typename UBOType> void addUBO(const UBO<UBOType>& ubo)
   {
     vk::DescriptorSetLayoutBinding binding{};
@@ -83,20 +78,29 @@ public:
     m_bindings.push_back(binding);
   }*/
 
-  template <typename UBOType> void addUBO(const std::vector<UBO<UBOType>>& ubos)
+  template <typename UBOType> void addUBO(const UBO<UBOType>& ubo)
   {
-    auto& item = m_UBOBindings.emplace_back();
+    auto& item = m_uniformBindings.emplace_back();
     item.idx = m_idx++;
     item.binding.binding = item.idx;
     item.binding.descriptorType = vk::DescriptorType::eUniformBuffer;
     item.binding.descriptorCount = 1;
-    item.binding.stageFlags = ubos.front().m_shaderStage;
-    item.buffers.resize(ubos.size());
-    std::transform(ubos.begin(), ubos.end(), item.buffers.begin(),
-        [](const auto& ubo) { return *ubo.m_buffer; });
-    item.size = ubos.front().type_size();
+    item.binding.stageFlags = ubo.m_shaderStage;
+    item.buffer = ubo.buffer();
+    item.size = ubo.type_size();
   }
 
+  void addSampler(const vk::ImageView view, const vk::Sampler sampler)
+  {
+    auto& item = m_samplerBindings.emplace_back();
+    item.idx = m_idx++;
+    item.binding.binding = item.idx;
+    item.binding.descriptorType = vk::DescriptorType::eCombinedImageSampler;
+    item.binding.descriptorCount = 1;
+    item.binding.stageFlags = vk::ShaderStageFlagBits::eFragment;
+    item.view = view;
+    item.sampler = sampler;
+  }
   void addSampler(const Texture& texture)
   {
     auto& item = m_samplerBindings.emplace_back();
@@ -109,10 +113,11 @@ public:
     item.sampler = texture.sampler();
   }
 
-  vk::UniqueDescriptorSetLayout generateLayout(const Device& device)
+  // vk::UniqueDescriptorSetLayout generateLayout(const Device& device)
+  void generateLayout(const Device& device)
   {
-    m_layout.resize(m_UBOBindings.size() + m_samplerBindings.size());
-    for (const auto& binding : m_UBOBindings) {
+    m_layout.resize(m_uniformBindings.size() + m_samplerBindings.size());
+    for (const auto& binding : m_uniformBindings) {
       m_layout[binding.idx] = binding.binding;
     }
     for (const auto& binding : m_samplerBindings) {
@@ -121,42 +126,53 @@ public:
     vk::DescriptorSetLayoutCreateInfo createInfo{};
     createInfo.bindingCount = static_cast<std::uint32_t>(m_layout.size());
     createInfo.pBindings = m_layout.data();
-    return device.device().createDescriptorSetLayoutUnique(createInfo);
+    m_descriptorSetLayout =
+        device.device().createDescriptorSetLayoutUnique(createInfo);
   }
 
-  vk::UniqueDescriptorPool generatePool(
-      const Device& device)
+  void generatePool(const Device& device)
   {
     std::vector<vk::DescriptorPoolSize> descriptorPoolSizes;
     for (const auto& binding : m_layout) {
       auto& descriptorPoolSize = descriptorPoolSizes.emplace_back();
       descriptorPoolSize.type = binding.descriptorType;
-      descriptorPoolSize.descriptorCount = m_swapchainSize;
+      descriptorPoolSize.descriptorCount = 1;
     }
 
     vk::DescriptorPoolCreateInfo poolCreateInfo{};
     poolCreateInfo.poolSizeCount =
         static_cast<std::uint32_t>(descriptorPoolSizes.size());
     poolCreateInfo.pPoolSizes = descriptorPoolSizes.data();
-    poolCreateInfo.maxSets = m_swapchainSize;
+    poolCreateInfo.maxSets = 1;
 
-    return device.device().createDescriptorPoolUnique(poolCreateInfo);
+    m_descriptorPool =
+        device.device().createDescriptorPoolUnique(poolCreateInfo);
+    allocate(device);
   }
 
-  void updateDescriptors(const Device& device,
-      const std::vector<vk::DescriptorSet>& descriptorSets)
+  void allocate(const Device& device) 
   {
-    for (const auto& ubo : m_UBOBindings) {
-      for (std::size_t i{0u}; i < m_swapchainSize; ++i) {
+	vk::DescriptorSetAllocateInfo allocateInfo{};
+    allocateInfo.descriptorPool = *m_descriptorPool;
+    allocateInfo.descriptorSetCount = 1;
+    allocateInfo.pSetLayouts = &*m_descriptorSetLayout;
+    m_descriptorSets = device.device().allocateDescriptorSets(allocateInfo);
+    updateDescriptors(device);
+  }
+
+  void updateDescriptors(const Device& device)
+  {
+    for (const auto& ubo : m_uniformBindings) {
+      for (std::size_t i{0u}; i < m_descriptorSets.size(); ++i) {
         vk::DescriptorBufferInfo bufferInfo{};
-        bufferInfo.buffer = ubo.buffers[i];
+        bufferInfo.buffer = ubo.buffer;
         bufferInfo.offset = 0;
         bufferInfo.range = ubo.size;
 
         vk::WriteDescriptorSet descriptorWrite{};
 
-        descriptorWrite.dstSet = descriptorSets[i];
-        descriptorWrite.dstBinding = 0;
+        descriptorWrite.dstSet = m_descriptorSets[i];
+        descriptorWrite.dstBinding = ubo.binding.binding;
         descriptorWrite.dstArrayElement = 0;
         descriptorWrite.descriptorType = vk::DescriptorType::eUniformBuffer;
         descriptorWrite.descriptorCount = 1;
@@ -166,7 +182,7 @@ public:
       }
     }
     for (const auto& sampler : m_samplerBindings) {
-      for (std::size_t i{0u}; i < m_swapchainSize; ++i) {
+      for (std::size_t i{0u}; i < m_descriptorSets.size(); ++i) {
         vk::DescriptorImageInfo imageInfo{};
         imageInfo.imageLayout = vk::ImageLayout::eShaderReadOnlyOptimal;
         imageInfo.imageView = sampler.view;
@@ -174,8 +190,8 @@ public:
 
         vk::WriteDescriptorSet descriptorWrite{};
 
-        descriptorWrite.dstSet = descriptorSets[i];
-        descriptorWrite.dstBinding = 1;
+        descriptorWrite.dstSet = m_descriptorSets[i];
+        descriptorWrite.dstBinding = sampler.binding.binding;
         descriptorWrite.dstArrayElement = 0;
         descriptorWrite.descriptorType =
             vk::DescriptorType::eCombinedImageSampler;
@@ -187,12 +203,20 @@ public:
     }
   }
 
-  void clear() { *this = DescriptorSetLayout{m_swapchainSize}; }
-
-private:
-  std::uint32_t m_swapchainSize{};
+  void clear() { *this = DescriptorSet{}; }
+  vk::DescriptorSetLayout layout() const { return *m_descriptorSetLayout; }
+  vk::DescriptorPool pool() const { return *m_descriptorPool; }
+  const std::vector<vk::DescriptorSet>& descriptorSets() const
+  {
+    return m_descriptorSets;
+  }
+  private:
+  //std::uint32_t m_swapchainSize{};
   std::uint32_t m_idx{};
-  std::vector<UBODescriptorItem> m_UBOBindings;
+  vk::UniqueDescriptorSetLayout m_descriptorSetLayout{};
+  vk::UniqueDescriptorPool m_descriptorPool {};
+  std::vector<vk::DescriptorSet> m_descriptorSets{};
+  std::vector<UBODescriptorItem> m_uniformBindings;
   std::vector<SamplerDescriptorItem> m_samplerBindings;
   std::vector<vk::DescriptorSetLayoutBinding> m_layout;
 };
