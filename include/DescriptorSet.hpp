@@ -55,14 +55,7 @@ public:
   }
   void addSampler(const Texture& texture)
   {
-    auto& item = m_samplerBindings.emplace_back();
-    item.idx = m_idx++;
-    item.binding.binding = item.idx;
-    item.binding.descriptorType = vk::DescriptorType::eCombinedImageSampler;
-    item.binding.descriptorCount = 1;
-    item.binding.stageFlags = vk::ShaderStageFlagBits::eFragment;
-    item.view = texture.view();
-    item.sampler = texture.sampler();
+    addSampler(texture.view(), texture.sampler());
   }
 
   void generateLayout(const Device& device)
