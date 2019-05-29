@@ -28,7 +28,7 @@ class RenderPass
 {
 public:
   RenderPass() = default;
-  RenderPass(Device& device) : m_device{device} {}
+  RenderPass(Device& device) : m_device{&device} {}
   FramebufferAttachment& addAttachment(FrameBufferAttachmentInfo fbAttInfo)
   {
     auto& attachment = m_attachments.emplace_back();
@@ -77,11 +77,11 @@ public:
       vk::Extent3D fboExtent{
           fbAttInfo.extent.width, fbAttInfo.extent.height, 1};
       std::tie(attachment.image, attachment.memory) = VKUtil::createImage(
-          m_device, fboExtent, miplevels, fbAttInfo.numSamples,
+          *m_device, fboExtent, miplevels, fbAttInfo.numSamples,
           attachment.description.format, vk::ImageTiling::eOptimal,
           fbAttInfo.usage, vk::MemoryPropertyFlagBits::eDeviceLocal);
 
-      attachment.imageView = VKUtil::createImageView(m_device.device(),
+      attachment.imageView = VKUtil::createImageView(m_device->device(),
           *attachment.image, attachment.description.format, aspectFlag, 1);
 
       if (VKUtil::hasDepthComponent(attachment.description.format) ||
@@ -98,7 +98,7 @@ public:
               vk::ImageLayout::eShaderReadOnlyOptimal;
         }
       }
-      VKUtil::transitionImageLayout(m_device, *attachment.image,
+      VKUtil::transitionImageLayout(*m_device, *attachment.image,
           attachment.description.format, attachment.description.initialLayout,
           attachment.description.finalLayout, 1);
     } else {
@@ -192,13 +192,13 @@ public:
     renderPassCreateInfo.pDependencies = subpassDependency.data();
 
     m_renderPass =
-        m_device.device().createRenderPassUnique(renderPassCreateInfo);
+        m_device->device().createRenderPassUnique(renderPassCreateInfo);
   }
   vk::RenderPass renderpass() const { return *m_renderPass; }
   const auto& attachments() const { return m_attachments; }
   void clear() { m_attachments.clear(); }
-  private:
-  Device& m_device;
+private:
+  Device* m_device{nullptr};
   std::vector<FramebufferAttachment> m_attachments;
   vk::UniqueRenderPass m_renderPass{};
 };

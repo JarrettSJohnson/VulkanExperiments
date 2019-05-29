@@ -1,6 +1,5 @@
-#pragma once
-
 #include <cstdint>
+#include <unordered_map>
 
 #define TINYOBJLOADER_IMPLEMENTATION
 

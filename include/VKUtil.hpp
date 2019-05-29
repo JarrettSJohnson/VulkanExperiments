@@ -135,8 +135,8 @@ inline void copyBufferToImage(Device& device, vk::CommandPool commandPool,
   region.imageSubresource.mipLevel = 0;
   region.imageSubresource.baseArrayLayer = 0;
   region.imageSubresource.layerCount = 1;
-  region.imageOffset = {0, 0, 0};
-  region.imageExtent = {width, height, 1};
+  region.imageOffset = {{0, 0, 0}};
+  region.imageExtent = {{width, height, 1}};
 
   commandBuffer->copyBufferToImage(
       buffer, image, vk::ImageLayout::eTransferDstOptimal, 1, &region);
@@ -328,15 +328,15 @@ inline void generateMipmaps(Device& device, vk::Image image, vk::Format format,
         0, nullptr, 1, &barrier);
 
     vk::ImageBlit blit{};
-    blit.srcOffsets[0] = {0, 0, 0};
-    blit.srcOffsets[1] = {mipWidth, mipHeight, 1};
+    blit.srcOffsets[0] = {{0, 0, 0}};
+    blit.srcOffsets[1] = {{mipWidth, mipHeight, 1}};
     blit.srcSubresource.aspectMask = vk::ImageAspectFlagBits::eColor;
     blit.srcSubresource.mipLevel = i - 1;
     blit.srcSubresource.baseArrayLayer = 0;
     blit.srcSubresource.layerCount = 1;
-    blit.dstOffsets[0] = {0, 0, 0};
-    blit.dstOffsets[1] = {
-        mipWidth > 1 ? mipWidth / 2 : 1, mipHeight > 1 ? mipHeight / 2 : 1, 1};
+    blit.dstOffsets[0] = {{0, 0, 0}};
+    blit.dstOffsets[1] = {{
+        mipWidth > 1 ? mipWidth / 2 : 1, mipHeight > 1 ? mipHeight / 2 : 1, 1}};
     blit.dstSubresource.aspectMask = vk::ImageAspectFlagBits::eColor;
     blit.dstSubresource.mipLevel = i;
     blit.dstSubresource.baseArrayLayer = 0;

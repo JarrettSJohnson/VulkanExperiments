@@ -122,15 +122,15 @@ void Application::generateMipmaps(vk::Image image, vk::Format format,
         0, nullptr, 1, &barrier);
 
     vk::ImageBlit blit{};
-    blit.srcOffsets[0] = {0, 0, 0};
-    blit.srcOffsets[1] = {mipWidth, mipHeight, 1};
+    blit.srcOffsets[0] = {{0, 0, 0}};
+    blit.srcOffsets[1] = {{mipWidth, mipHeight, 1}};
     blit.srcSubresource.aspectMask = vk::ImageAspectFlagBits::eColor;
     blit.srcSubresource.mipLevel = i - 1;
     blit.srcSubresource.baseArrayLayer = 0;
     blit.srcSubresource.layerCount = 1;
-    blit.dstOffsets[0] = {0, 0, 0};
-    blit.dstOffsets[1] = {
-        mipWidth > 1 ? mipWidth / 2 : 1, mipHeight > 1 ? mipHeight / 2 : 1, 1};
+    blit.dstOffsets[0] = {{0, 0, 0}};
+    blit.dstOffsets[1] = {{
+        mipWidth > 1 ? mipWidth / 2 : 1, mipHeight > 1 ? mipHeight / 2 : 1, 1}};
     blit.dstSubresource.aspectMask = vk::ImageAspectFlagBits::eColor;
     blit.dstSubresource.mipLevel = i;
     blit.dstSubresource.baseArrayLayer = 0;
@@ -189,12 +189,12 @@ void Application::setupCommandBuffers(
   vk::RenderPassBeginInfo renderPassBeginInfo{};
   renderPassBeginInfo.renderPass = offscreenRenderPass->renderpass();
   renderPassBeginInfo.framebuffer = offscreenFB->framebuffer();
-  renderPassBeginInfo.renderArea.offset = {0, 0};
+  renderPassBeginInfo.renderArea.offset = {{0, 0}};
   renderPassBeginInfo.renderArea.extent = m_swapchain.extent();
 
   std::array<vk::ClearValue, 2> clearValues{};
   clearValues[0].color = std::array{0.0f, 0.0f, 0.0f, 1.0f};
-  clearValues[1].depthStencil = {1.0f, 0};
+  clearValues[1].depthStencil = {{1.0f, 0}};
   renderPassBeginInfo.clearValueCount =
       static_cast<std::uint32_t>(clearValues.size());
   renderPassBeginInfo.pClearValues = clearValues.data();

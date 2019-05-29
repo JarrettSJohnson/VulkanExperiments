@@ -68,7 +68,7 @@ public:
     viewport.maxDepth = 1.0f;
 
     
-    scissors.offset = {0, 0};
+    scissors.offset = {{0, 0}};
     scissors.extent = extent;
     
     viewportStateCreateInfo.viewportCount = 1;

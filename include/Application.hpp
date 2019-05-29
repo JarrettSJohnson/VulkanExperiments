@@ -94,9 +94,9 @@ public:
   
 
 
-  std::array<vk::UniqueSemaphore, framesInFlight> m_drawSemaphores{};
-  std::array<vk::UniqueSemaphore, framesInFlight> m_presentSemaphores{};
-  std::array<vk::UniqueFence, framesInFlight> m_fences{};
+  std::array<vk::UniqueSemaphore, framesInFlight> m_drawSemaphores;
+  std::array<vk::UniqueSemaphore, framesInFlight> m_presentSemaphores;
+  std::array<vk::UniqueFence, framesInFlight> m_fences;
 
   Window m_window{};
   std::array<std::uint32_t, 1> m_familyIndex{0u};
