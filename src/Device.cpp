@@ -2,7 +2,6 @@
 
 #include "VKUtil.hpp"
 
-
 Device::Device(vk::PhysicalDevice physicalDevice)
     : m_physicalDevice{physicalDevice},
       m_physicalDeviceProperties{m_physicalDevice.getProperties()},

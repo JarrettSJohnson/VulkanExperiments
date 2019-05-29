@@ -83,16 +83,13 @@ public:
   std::unique_ptr<Framebuffer> offscreenFB{};
   PipelineLayout offscreenPipelineLayout{};
   Pipeline offscreenPipeline{};
-  //vk::UniqueDescriptorSetLayout offscreenDescriptorSetLayout{};
-  
+  // vk::UniqueDescriptorSetLayout offscreenDescriptorSetLayout{};
+
   std::unique_ptr<RenderPass> m_renderPass{};
   std::vector<Framebuffer> m_framebuffers{};
   PipelineLayout m_graphicsPipelineLayout{};
   Pipeline m_graphicsPipeline{};
- // vk::UniqueDescriptorSetLayout m_descriptorSetLayout{};
-
-  
-
+  // vk::UniqueDescriptorSetLayout m_descriptorSetLayout{};
 
   std::array<vk::UniqueSemaphore, framesInFlight> m_drawSemaphores;
   std::array<vk::UniqueSemaphore, framesInFlight> m_presentSemaphores;
@@ -113,7 +110,7 @@ public:
   Texture m_texture{};
 
   DescriptorSet offscreenDescriptorSets{};
-  //TODO: generate takes a size for blah blah swapchain
+  // TODO: generate takes a size for blah blah swapchain
   std::vector<DescriptorSet> m_DescriptorSet{}; // 2?
 
   /*vk::UniqueDescriptorPool offscreenDescriptorPool{};
@@ -194,7 +191,7 @@ public:
 
   void updateUniformBuffer(uint32_t currentImage)
   {
-    //VKUtil::transferToGPU(m_device, *m_UBOs[currentImage].m_memory, newUBOT);
+    // VKUtil::transferToGPU(m_device, *m_UBOs[currentImage].m_memory, newUBOT);
     m_UBO->copyData();
   }
   void createUniformBuffers();

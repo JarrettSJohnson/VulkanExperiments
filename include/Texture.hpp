@@ -87,8 +87,8 @@ public:
 
   vk::Sampler sampler() const { return *m_sampler; }
   vk::UniqueSampler m_sampler{};
-  private:
 
+private:
   STB_Image m_rawImage{};
   vk::UniqueImage m_image{};
   vk::UniqueDeviceMemory m_textureImageMemory{};

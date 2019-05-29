@@ -11,6 +11,7 @@ public:
   glm::vec3 dir() const { return m_dir; }
   void translate(glm::vec3 trans) { m_pos += trans; }
   static constexpr glm::vec3 up = glm::vec3(0.0f, 1.0f, 0.0f);
+
 private:
   glm::vec3 m_pos = glm::vec3(0.0f, 0.0f, 3.0f);
   glm::vec3 m_tar = glm::vec3(0.0f, 0.0, 0.0f);

@@ -55,7 +55,8 @@ public:
   };
   ~Window() { glfwDestroyWindow(m_window); };
 
-  void processInputWindow() {
+  void processInputWindow()
+  {
     if (glfwGetKey(m_window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
       glfwSetWindowShouldClose(m_window, true);
   }

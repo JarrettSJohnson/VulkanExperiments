@@ -1,8 +1,8 @@
 #include "Application.hpp"
 #include "Shader.hpp"
 
-#include "Light.hpp"
 #include "Camera.hpp"
+#include "Light.hpp"
 #include <chrono>
 
 Application::Application() {}
@@ -129,8 +129,8 @@ void Application::generateMipmaps(vk::Image image, vk::Format format,
     blit.srcSubresource.baseArrayLayer = 0;
     blit.srcSubresource.layerCount = 1;
     blit.dstOffsets[0] = {{0, 0, 0}};
-    blit.dstOffsets[1] = {{
-        mipWidth > 1 ? mipWidth / 2 : 1, mipHeight > 1 ? mipHeight / 2 : 1, 1}};
+    blit.dstOffsets[1] = {{mipWidth > 1 ? mipWidth / 2 : 1,
+        mipHeight > 1 ? mipHeight / 2 : 1, 1}};
     blit.dstSubresource.aspectMask = vk::ImageAspectFlagBits::eColor;
     blit.dstSubresource.mipLevel = i;
     blit.dstSubresource.baseArrayLayer = 0;
@@ -157,8 +157,10 @@ void Application::generateMipmaps(vk::Image image, vk::Format format,
   VKUtil::endSingleTimeCommands(commandBuffer, m_device.m_graphicsQueue);
 }
 
-void Application::createUniformBuffers(){
-  m_UBO = std::make_unique<UBO<LightUniforms>>(m_device, vk::ShaderStageFlagBits::eVertex);
+void Application::createUniformBuffers()
+{
+  m_UBO = std::make_unique<UBO<LightUniforms>>(
+      m_device, vk::ShaderStageFlagBits::eVertex);
 }
 
 void Application::allocateCommandBuffers()
@@ -185,7 +187,7 @@ void Application::setupCommandBuffers(
 
   m_commandBuffers[i]->begin(commandBufferBeginInfo);
 
-    // BEGIN OFFSCREEN RENDER PASS
+  // BEGIN OFFSCREEN RENDER PASS
   vk::RenderPassBeginInfo renderPassBeginInfo{};
   renderPassBeginInfo.renderPass = offscreenRenderPass->renderpass();
   renderPassBeginInfo.framebuffer = offscreenFB->framebuffer();
@@ -211,22 +213,22 @@ void Application::setupCommandBuffers(
         buffer.iBuffer, 0, vk::IndexType::eUint32);
     const auto& offscreenDS = offscreenDescriptorSets.descriptorSets();
     m_commandBuffers[i]->bindDescriptorSets(vk::PipelineBindPoint::eGraphics,
-        offscreenPipelineLayout.layout(), 0, static_cast<std::uint32_t>(offscreenDS.size()),
-        offscreenDS.data(), 0,
+        offscreenPipelineLayout.layout(), 0,
+        static_cast<std::uint32_t>(offscreenDS.size()), offscreenDS.data(), 0,
         nullptr);
     m_commandBuffers[i]->pushConstants(offscreenPipelineLayout.layout(),
         vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment,
         0, sizeof(buffer.pushConstants), &buffer.pushConstants);
-    m_commandBuffers[i]->drawIndexed(
-        buffer.numIndices, 1, 0, 0, 0);
+    m_commandBuffers[i]->drawIndexed(buffer.numIndices, 1, 0, 0, 0);
   }
   m_commandBuffers[i]->endRenderPass();
 
-//VKUtil::transitionImageLayout(m_device,
+  // VKUtil::transitionImageLayout(m_device,
   //    *offscreenRenderPass->attachments().back().image, m_swapchain.format(),
- //     vk::ImageLayout::eUndefined, vk::ImageLayout::eShaderReadOnlyOptimal, 1);
+  //     vk::ImageLayout::eUndefined, vk::ImageLayout::eShaderReadOnlyOptimal,
+  //     1);
 
-  //BEGIN DEFAULT/FULLSCREEN RENDER PASS
+  // BEGIN DEFAULT/FULLSCREEN RENDER PASS
   renderPassBeginInfo.renderPass = m_renderPass->renderpass();
   renderPassBeginInfo.framebuffer = m_framebuffers[i].framebuffer();
   m_commandBuffers[i]->beginRenderPass(
@@ -235,9 +237,9 @@ void Application::setupCommandBuffers(
       vk::PipelineBindPoint::eGraphics, m_graphicsPipeline.pipeline());
   const auto& defaultDS = m_DescriptorSet[i].descriptorSets();
   m_commandBuffers[i]->bindDescriptorSets(vk::PipelineBindPoint::eGraphics,
-      m_graphicsPipelineLayout.layout(), 0, static_cast<std::uint32_t>(defaultDS.size()),
-	  defaultDS.data(), 0,
-      nullptr);///
+      m_graphicsPipelineLayout.layout(), 0,
+      static_cast<std::uint32_t>(defaultDS.size()), defaultDS.data(), 0,
+      nullptr); ///
   m_commandBuffers[i]->draw(3, 1, 0, 0);
   m_commandBuffers[i]->endRenderPass();
 
@@ -265,7 +267,8 @@ void Application::createRenderPass()
   FrameBufferAttachmentInfo resolveAttachInfo{};
   resolveAttachInfo.extent = m_swapchain.extent();
   resolveAttachInfo.format = m_swapchain.format();
-  resolveAttachInfo.usage = vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eSampled;
+  resolveAttachInfo.usage = vk::ImageUsageFlagBits::eColorAttachment |
+                            vk::ImageUsageFlagBits::eSampled;
   resolveAttachInfo.isResolve = true;
 
   offscreenRenderPass->addAttachment(colorAttachInfo);
@@ -280,7 +283,7 @@ void Application::createRenderPass()
   defaultColorAttachInfo.format = m_swapchain.format();
   defaultColorAttachInfo.numSamples = vk::SampleCountFlagBits::e1;
   defaultColorAttachInfo.usage = vk::ImageUsageFlagBits::eTransientAttachment |
-                          vk::ImageUsageFlagBits::eColorAttachment;
+                                 vk::ImageUsageFlagBits::eColorAttachment;
   defaultColorAttachInfo.presented = true;
   m_renderPass->addAttachment(defaultColorAttachInfo);
 
@@ -299,26 +302,26 @@ void Application::createPipeline()
       vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment;
   pushConstantRange.size = sizeof(PushConstants);
 
-  offscreenPipelineLayout = PipelineLayout{
-      m_device, m_swapchain, offscreenDescriptorSets.layout(), pushConstantRange};
-  offscreenPipeline = Pipeline{m_device, m_swapchain.extent(), m_device.m_msaaSamples};
+  offscreenPipelineLayout = PipelineLayout{m_device, m_swapchain,
+      offscreenDescriptorSets.layout(), pushConstantRange};
+  offscreenPipeline =
+      Pipeline{m_device, m_swapchain.extent(), m_device.m_msaaSamples};
   offscreenPipeline.addVertexDescription<Vertex>();
   offscreenPipeline.generate(m_device, offscreenPipelineLayout,
       *offscreenRenderPass, offscreenVertShader, offscreenFragShader);
-
 
   Shader vertShader{
       m_device, "../assets/fullscreen.vert.spv", Shader::ShaderType::VERTEX};
   Shader fragShader{
       m_device, "../assets/fullscreen.frag.spv", Shader::ShaderType::FRAGMENT};
-  m_graphicsPipelineLayout = PipelineLayout{m_device, m_swapchain, m_DescriptorSet.front().layout()};
+  m_graphicsPipelineLayout =
+      PipelineLayout{m_device, m_swapchain, m_DescriptorSet.front().layout()};
   m_graphicsPipeline =
       Pipeline{m_device, m_swapchain.extent(), vk::SampleCountFlagBits::e1};
   m_graphicsPipeline.changeRasterizationFullscreenTriangle();
-  m_graphicsPipeline.generate(
-      m_device, m_graphicsPipelineLayout, *m_renderPass, vertShader, fragShader);
+  m_graphicsPipeline.generate(m_device, m_graphicsPipelineLayout, *m_renderPass,
+      vertShader, fragShader);
   int x = 5;
-  
 }
 
 void Application::createFramebuffers()
@@ -480,8 +483,8 @@ void Application::run()
   // mvps.emplace_back(app.m_device, vk::ShaderStageFlagBits::eVertex);
   // mvps.emplace_back(app.m_device, vk::ShaderStageFlagBits::eVertex);
 
-  m_UBO = std::make_unique<UBO<LightUniforms>>(m_device, vk::ShaderStageFlagBits::eAllGraphics);
-
+  m_UBO = std::make_unique<UBO<LightUniforms>>(
+      m_device, vk::ShaderStageFlagBits::eAllGraphics);
 
   createRenderPass();
 
@@ -490,11 +493,12 @@ void Application::run()
   offscreenDescriptorSets.generateLayout(m_device);
   offscreenDescriptorSets.generatePool(m_device);
 
-   vk::UniqueSampler offViewSampler = VKUtil::createTextureSampler(m_device);
+  vk::UniqueSampler offViewSampler = VKUtil::createTextureSampler(m_device);
 
   m_DescriptorSet.resize(m_swapchain.size());
   for (auto& descriptor : m_DescriptorSet) {
-    descriptor.addSampler(*offscreenRenderPass->attachments().back().imageView, *offViewSampler);
+    descriptor.addSampler(
+        *offscreenRenderPass->attachments().back().imageView, *offViewSampler);
     descriptor.generateLayout(m_device);
     descriptor.generatePool(m_device);
   }
@@ -517,9 +521,8 @@ void Application::run()
 
   while (!m_window.shouldClose()) {
     m_window.processInputWindow();
-	m_window.processInputCamera(camera);
+    m_window.processInputCamera(camera);
     camera.setDir(m_window.getNewDir());
-
 
     glfwPollEvents();
 

@@ -1,7 +1,7 @@
 #pragma once
 
-#include <vulkan/vulkan.hpp>
 #include <vector>
+#include <vulkan/vulkan.hpp>
 
 #define GLM_FORCE_RADIANS
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
@@ -11,21 +11,21 @@
 #define GLM_ENABLE_EXPERIMENTAL
 #include <glm/gtx/hash.hpp>
 
-
-struct Vertex{
+struct Vertex {
   glm::vec3 pos;
   glm::vec3 normal;
   glm::vec2 texCoord;
 
-
-  static auto getBindingDescription(){
+  static auto getBindingDescription()
+  {
     std::vector<vk::VertexInputBindingDescription> bindingDescriptions(1);
     bindingDescriptions[0].binding = 0;
     bindingDescriptions[0].stride = sizeof(Vertex);
     bindingDescriptions[0].inputRate = vk::VertexInputRate::eVertex;
     return bindingDescriptions;
   }
-  static auto getAttributeDescriptions(){
+  static auto getAttributeDescriptions()
+  {
     std::vector<vk::VertexInputAttributeDescription> attributeDescriptions(3);
     attributeDescriptions[0].binding = 0;
     attributeDescriptions[0].location = 0;

@@ -10,7 +10,6 @@
 #include "UBO.hpp"
 #include "VKUtil.hpp"
 
-
 class DescriptorSet
 {
 public:
@@ -94,9 +93,9 @@ public:
     allocate(device);
   }
 
-  void allocate(const Device& device) 
+  void allocate(const Device& device)
   {
-	vk::DescriptorSetAllocateInfo allocateInfo{};
+    vk::DescriptorSetAllocateInfo allocateInfo{};
     allocateInfo.descriptorPool = *m_descriptorPool;
     allocateInfo.descriptorSetCount = 1;
     allocateInfo.pSetLayouts = &*m_descriptorSetLayout;
@@ -154,11 +153,11 @@ public:
   {
     return m_descriptorSets;
   }
-  private:
 
+private:
   std::uint32_t m_idx{};
   vk::UniqueDescriptorSetLayout m_descriptorSetLayout{};
-  vk::UniqueDescriptorPool m_descriptorPool {};
+  vk::UniqueDescriptorPool m_descriptorPool{};
   std::vector<vk::DescriptorSet> m_descriptorSets{};
   std::vector<UBODescriptorItem> m_uniformBindings;
   std::vector<SamplerDescriptorItem> m_samplerBindings;

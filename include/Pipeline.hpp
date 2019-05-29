@@ -23,9 +23,10 @@ public:
     std::uint32_t pushConstantRangeCount{};
     const vk::PushConstantRange* pPush{};
     if (oPushConstantRange) {
-      //oPushConstantRange->stageFlags =
-      //    vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment;
-      //oPushConstantRange->size = sizeof(PushConstants);
+      // oPushConstantRange->stageFlags =
+      //    vk::ShaderStageFlagBits::eVertex |
+      //    vk::ShaderStageFlagBits::eFragment;
+      // oPushConstantRange->size = sizeof(PushConstants);
       pushConstantRangeCount = 1;
       pPush = &oPushConstantRange.value();
     }
@@ -36,7 +37,7 @@ public:
     if (oDescSetLayout) {
       setLayoutCount = 1;
       pDescSetLayout = &oDescSetLayout.value();
-	}
+    }
 
     vk::PipelineLayoutCreateInfo layoutCreateInfo{};
     layoutCreateInfo.setLayoutCount = setLayoutCount;
@@ -47,7 +48,7 @@ public:
   }
   vk::PipelineLayout layout() const { return *m_layout; }
 
-  private:
+private:
   vk::UniquePipelineLayout m_layout{};
 };
 
@@ -55,8 +56,9 @@ class Pipeline
 {
 public:
   Pipeline() = default;
-  Pipeline(Device& device, vk::Extent2D extent, vk::SampleCountFlagBits sampleCount)
-  {    
+  Pipeline(
+      Device& device, vk::Extent2D extent, vk::SampleCountFlagBits sampleCount)
+  {
     inputAssemblyStateCreateInfo.topology =
         vk::PrimitiveTopology::eTriangleList;
 
@@ -67,39 +69,39 @@ public:
     viewport.minDepth = 0.0f;
     viewport.maxDepth = 1.0f;
 
-    
     scissors.offset = {{0, 0}};
     scissors.extent = extent;
-    
+
     viewportStateCreateInfo.viewportCount = 1;
     viewportStateCreateInfo.pViewports = &viewport;
     viewportStateCreateInfo.scissorCount = 1;
     viewportStateCreateInfo.pScissors = &scissors;
-    
+
     rasterizationStateCreateInfo.polygonMode = vk::PolygonMode::eFill;
     rasterizationStateCreateInfo.lineWidth = 1.0f;
     rasterizationStateCreateInfo.cullMode = vk::CullModeFlagBits::eBack;
     rasterizationStateCreateInfo.frontFace = vk::FrontFace::eCounterClockwise;
-    
+
     multisampleStateCreateInfo.rasterizationSamples = sampleCount;
-    
+
     depthStencilStateCreateInfo.depthTestEnable = VK_TRUE;
     depthStencilStateCreateInfo.depthWriteEnable = VK_TRUE;
     depthStencilStateCreateInfo.depthCompareOp = vk::CompareOp::eLess;
     depthStencilStateCreateInfo.depthBoundsTestEnable = VK_FALSE;
     depthStencilStateCreateInfo.stencilTestEnable = VK_FALSE;
-    
+
     colorBlendAttachment.colorWriteMask =
         vk::ColorComponentFlagBits::eR | vk::ColorComponentFlagBits::eG |
         vk::ColorComponentFlagBits::eB | vk::ColorComponentFlagBits::eA;
     colorBlendAttachment.blendEnable = VK_FALSE;
-    
+
     colorBlendStateCreateInfo.logicOp = vk::LogicOp::eCopy;
     colorBlendStateCreateInfo.attachmentCount = 1;
     colorBlendStateCreateInfo.pAttachments = &colorBlendAttachment;
   };
 
-  template<typename VertexType> void addVertexDescription() {
+  template <typename VertexType> void addVertexDescription()
+  {
 
     bindingDescriptions = VertexType::getBindingDescription();
     attributeDescriptions = VertexType::getAttributeDescriptions();
@@ -114,14 +116,14 @@ public:
         attributeDescriptions.data();
   }
 
-  void changeRasterizationFullscreenTriangle() {
+  void changeRasterizationFullscreenTriangle()
+  {
     rasterizationStateCreateInfo.cullMode = vk::CullModeFlagBits::eFront;
     rasterizationStateCreateInfo.frontFace = vk::FrontFace::eCounterClockwise;
   }
 
   void generate(const Device& device, PipelineLayout& layout,
-      RenderPass& renderPass, Shader& vertShader,
-      Shader& fragShader)
+      RenderPass& renderPass, Shader& vertShader, Shader& fragShader)
   {
     std::array<vk::PipelineShaderStageCreateInfo, 2> shaderStages{
         vertShader.shaderCI(), fragShader.shaderCI()};
@@ -161,11 +163,6 @@ private:
   vk::PipelineDepthStencilStateCreateInfo depthStencilStateCreateInfo{};
   vk::PipelineColorBlendAttachmentState colorBlendAttachment{};
   vk::PipelineColorBlendStateCreateInfo colorBlendStateCreateInfo{};
-
-
-
-
-
 
   vk::UniquePipeline m_graphicsPipeline{};
 };

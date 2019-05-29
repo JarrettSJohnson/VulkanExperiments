@@ -9,14 +9,11 @@
 class Shader
 {
 public:
-	enum class ShaderType {
-		VERTEX,
-		FRAGMENT
-  };
+  enum class ShaderType { VERTEX, FRAGMENT };
 
-  Shader(Device& device, const std::filesystem::path& filename,
-            ShaderType sType)
-            : m_sType{sType}
+  Shader(
+      Device& device, const std::filesystem::path& filename, ShaderType sType)
+      : m_sType{sType}
   {
     auto data = VKUtil::getFileData(filename);
     vk::ShaderModuleCreateInfo createInfo{};
@@ -26,13 +23,14 @@ public:
   }
 
   vk::ShaderModule getModule() const { return *m_module; }
-  vk::PipelineShaderStageCreateInfo shaderCI() {
+  vk::PipelineShaderStageCreateInfo shaderCI()
+  {
     vk::PipelineShaderStageCreateInfo createInfo{};
     if (m_sType == ShaderType::VERTEX) {
       createInfo.stage = vk::ShaderStageFlagBits::eVertex;
     } else if (m_sType == ShaderType::FRAGMENT) {
       createInfo.stage = vk::ShaderStageFlagBits::eFragment;
-	}
+    }
     createInfo.module = *m_module;
     createInfo.pName = "main";
     return createInfo;

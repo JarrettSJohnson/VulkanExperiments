@@ -31,8 +31,8 @@ public:
     swapChainCreateInfo.imageArrayLayers = 1;
     swapChainCreateInfo.imageUsage = vk::ImageUsageFlagBits::eColorAttachment;
     swapChainCreateInfo.imageSharingMode = vk::SharingMode::eExclusive;
-    swapChainCreateInfo.queueFamilyIndexCount = 1; //todo
-    swapChainCreateInfo.pQueueFamilyIndices = 0; //todo
+    swapChainCreateInfo.queueFamilyIndexCount = 1; // todo
+    swapChainCreateInfo.pQueueFamilyIndices = 0;   // todo
     swapChainCreateInfo.presentMode = presentModes.front();
     swapChainCreateInfo.preTransform = surfaceCapabilities.currentTransform;
     swapChainCreateInfo.compositeAlpha = vk::CompositeAlphaFlagBitsKHR::eOpaque;
@@ -50,8 +50,9 @@ public:
   }
 
   vk::Format format() const { return m_format; }
-  vk::Extent3D extent3D() const { 
-	  return vk::Extent3D{m_extent.width, m_extent.height, 1};
+  vk::Extent3D extent3D() const
+  {
+    return vk::Extent3D{m_extent.width, m_extent.height, 1};
   }
   vk::Extent2D extent() const { return m_extent; }
   std::size_t size() const { return m_images.size(); }

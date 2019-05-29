@@ -22,7 +22,7 @@ struct Device {
   QueueFamilyIndices m_familyIndices{};
   vk::Queue m_graphicsQueue{};
   vk::Queue m_transferQueue{};
-  //vk::queue m_computeQueue{};
+  // vk::queue m_computeQueue{};
 
   vk::PhysicalDeviceProperties m_physicalDeviceProperties{};
   vk::PhysicalDeviceFeatures m_features{};

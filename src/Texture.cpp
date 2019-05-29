@@ -7,16 +7,15 @@
 #include "Texture.hpp"
 #include "VKUtil.hpp"
 
-
 STB_Image::STB_Image(const std::filesystem::path& filename)
 {
-    int channels;
-    m_data = stbi_load(filename.string().c_str(), &m_width, &m_height,
-        &channels, STBI_rgb_alpha);
-    if (!m_data) {
-      throw std::runtime_error{"Could not load texture!"};
-    }
- }
+  int channels;
+  m_data = stbi_load(filename.string().c_str(), &m_width, &m_height, &channels,
+      STBI_rgb_alpha);
+  if (!m_data) {
+    throw std::runtime_error{"Could not load texture!"};
+  }
+}
 
 STB_Image::STB_Image(STB_Image&& other) noexcept
 {
@@ -31,4 +30,7 @@ STB_Image& STB_Image::operator=(STB_Image&& other) noexcept
   m_height = std::exchange(other.m_height, 0);
   return *this;
 };
-STB_Image::~STB_Image() { stbi_image_free(m_data); }
+STB_Image::~STB_Image()
+{
+  stbi_image_free(m_data);
+}

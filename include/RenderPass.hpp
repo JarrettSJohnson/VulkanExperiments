@@ -54,16 +54,16 @@ public:
 
     attachment.description.format = fbAttInfo.format;
 
-	if (fbAttInfo.isResolve) {
+    if (fbAttInfo.isResolve) {
       attachment.description.loadOp = vk::AttachmentLoadOp::eDontCare;
     } else {
       attachment.description.loadOp = vk::AttachmentLoadOp::eClear;
-	}
+    }
 
     if (!fbAttInfo.presented) {
 
       attachment.description.samples = fbAttInfo.numSamples;
-      
+
       // attachment.description.storeOp =
       //    (fbAttInfo.usage & vk::ImageUsageFlagBits::eSampled)
       //        ? vk::AttachmentStoreOp::eStore
@@ -143,7 +143,8 @@ public:
 
     vk::SubpassDescription subpassDescription{};
     subpassDescription.pipelineBindPoint = vk::PipelineBindPoint::eGraphics;
-    subpassDescription.colorAttachmentCount = static_cast<std::uint32_t>(colorReferences.size());
+    subpassDescription.colorAttachmentCount =
+        static_cast<std::uint32_t>(colorReferences.size());
     subpassDescription.pColorAttachments = colorReferences.data();
     subpassDescription.pDepthStencilAttachment =
         depthReference.has_value() ? &depthReference.value() : nullptr;
@@ -197,6 +198,7 @@ public:
   vk::RenderPass renderpass() const { return *m_renderPass; }
   const auto& attachments() const { return m_attachments; }
   void clear() { m_attachments.clear(); }
+
 private:
   Device* m_device{nullptr};
   std::vector<FramebufferAttachment> m_attachments;

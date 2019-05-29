@@ -1,7 +1,7 @@
 #pragma once
 
-#include <fstream>
 #include <filesystem>
+#include <fstream>
 #include <tuple>
 
 #include <vulkan/vulkan.hpp>
@@ -88,8 +88,7 @@ inline std::pair<vk::UniqueImage, vk::UniqueDeviceMemory> createImage(
   return std::make_pair(std::move(image), std::move(deviceMemory));
 }
 
-inline vk::UniqueCommandBuffer beginSingleTimeCommands(
-    Device& device)
+inline vk::UniqueCommandBuffer beginSingleTimeCommands(Device& device)
 {
   vk::UniqueCommandBuffer ret;
   vk::CommandBufferAllocateInfo allocateInfo{};
@@ -181,21 +180,20 @@ inline bool hasStencilComponent(const vk::Format& format)
          format == vk::Format::eD24UnormS8Uint;
 }
 
-
 inline bool hasDepthComponent(const vk::Format& format)
 {
-  return format == vk::Format::eD16Unorm ||
-	     format == vk::Format::eD32Sfloat ||
+  return format == vk::Format::eD16Unorm || format == vk::Format::eD32Sfloat ||
          format == vk::Format::eD24UnormS8Uint;
 }
 
-inline bool hasDepthStencilComponent(const vk::Format& format) {
+inline bool hasDepthStencilComponent(const vk::Format& format)
+{
   return hasDepthComponent(format) || hasStencilComponent(format);
 }
 
 inline void transitionImageLayout(Device& device, vk::Image image,
-    vk::Format format,
-    vk::ImageLayout oldLayout, vk::ImageLayout newLayout, uint32_t mipLevels)
+    vk::Format format, vk::ImageLayout oldLayout, vk::ImageLayout newLayout,
+    uint32_t mipLevels)
 {
   auto commandBuffer = beginSingleTimeCommands(device);
 
@@ -301,8 +299,7 @@ inline void generateMipmaps(Device& device, vk::Image image, vk::Format format,
         "texture image format does not support linear blitting!");
   }
 
-  auto commandBuffer = beginSingleTimeCommands(
-      device);
+  auto commandBuffer = beginSingleTimeCommands(device);
 
   vk::ImageMemoryBarrier barrier = {};
   barrier.image = image;
@@ -335,8 +332,8 @@ inline void generateMipmaps(Device& device, vk::Image image, vk::Format format,
     blit.srcSubresource.baseArrayLayer = 0;
     blit.srcSubresource.layerCount = 1;
     blit.dstOffsets[0] = {{0, 0, 0}};
-    blit.dstOffsets[1] = {{
-        mipWidth > 1 ? mipWidth / 2 : 1, mipHeight > 1 ? mipHeight / 2 : 1, 1}};
+    blit.dstOffsets[1] = {{mipWidth > 1 ? mipWidth / 2 : 1,
+        mipHeight > 1 ? mipHeight / 2 : 1, 1}};
     blit.dstSubresource.aspectMask = vk::ImageAspectFlagBits::eColor;
     blit.dstSubresource.mipLevel = i;
     blit.dstSubresource.baseArrayLayer = 0;
@@ -373,15 +370,15 @@ std::vector<typename VK_HANDLE_TYPE::element_type> uniqueToRaw(
   return newBuffer;
 }
 
-template<typename T>
-void transferToGPU(const Device& device, vk::DeviceMemory memory, const T& src) {
+template <typename T>
+void transferToGPU(const Device& device, vk::DeviceMemory memory, const T& src)
+{
   void* data = device.device().mapMemory(memory, 0, sizeof(T));
   std::memcpy(data, &src, sizeof(T));
-  //std::copy(src, src + sizeof(T), data);
+  // std::copy(src, src + sizeof(T), data);
   device.device().unmapMemory(memory);
 }
-inline
-vk::SampleCountFlagBits getMaxUsableSampleCount(Device& device)
+inline vk::SampleCountFlagBits getMaxUsableSampleCount(Device& device)
 {
   VkPhysicalDeviceProperties physicalDeviceProperties =
       device.m_physicalDeviceProperties;
@@ -411,8 +408,7 @@ vk::SampleCountFlagBits getMaxUsableSampleCount(Device& device)
   return vk::SampleCountFlagBits::e1;
 }
 
-inline
-std::vector<unsigned char> getFileData(const std::filesystem::path& path)
+inline std::vector<unsigned char> getFileData(const std::filesystem::path& path)
 {
   std::ifstream iFILE(path, std::ios::binary);
   return std::vector<unsigned char>((std::istreambuf_iterator<char>(iFILE)),
@@ -421,8 +417,9 @@ std::vector<unsigned char> getFileData(const std::filesystem::path& path)
 
 inline
 
-uint32_t findMemoryType(Device& device,
-    std::uint32_t typeFilter, vk::MemoryPropertyFlags properties)
+    uint32_t
+    findMemoryType(Device& device, std::uint32_t typeFilter,
+        vk::MemoryPropertyFlags properties)
 {
   vk::PhysicalDeviceMemoryProperties memoryProperties =
       device.m_physicalDevice.getMemoryProperties();
@@ -454,8 +451,7 @@ inline vk::Format findSupportedFormat(Device& device,
   throw std::runtime_error("Failed to find supported format!");
 }
 
-inline
-vk::Format findDepthFormat(Device& device)
+inline vk::Format findDepthFormat(Device& device)
 {
   return findSupportedFormat(device,
       {vk::Format::eD32Sfloat, vk::Format::eD32SfloatS8Uint,
@@ -464,8 +460,8 @@ vk::Format findDepthFormat(Device& device)
       vk::FormatFeatureFlagBits::eDepthStencilAttachment);
 }
 
-inline
-vk::UniqueSampler createTextureSampler(const Device& device, std::uint32_t mipLevels = 1)
+inline vk::UniqueSampler createTextureSampler(
+    const Device& device, std::uint32_t mipLevels = 1)
 {
   vk::SamplerCreateInfo samplerInfo{};
   samplerInfo.minFilter = vk::Filter::eLinear;

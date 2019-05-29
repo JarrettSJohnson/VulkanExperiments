@@ -22,7 +22,8 @@ int main()
  // mvps.emplace_back(app.m_device, vk::ShaderStageFlagBits::eVertex);
 
 
-  DescriptorSetLayout layout{static_cast<std::uint32_t>(app.m_swapchain.size())};
+  DescriptorSetLayout
+ layout{static_cast<std::uint32_t>(app.m_swapchain.size())};
   layout.addUBO(app.m_UBOs);
   layout.addSampler(app.m_texture);
   app.m_descriptorSetLayout = layout.generateLayout(app.m_device);
@@ -34,7 +35,8 @@ int main()
   allocateInfo.descriptorSetCount = static_cast<std::uint32_t>(layouts.size());
   allocateInfo.pSetLayouts = layouts.data();
 
-  app.m_descriptorSets = app.m_device.device().allocateDescriptorSets(allocateInfo);
+  app.m_descriptorSets =
+ app.m_device.device().allocateDescriptorSets(allocateInfo);
   layout.updateDescriptors(app.m_device, app.m_descriptorSets);
   app.createRenderPass();
   app.createPipeline();
