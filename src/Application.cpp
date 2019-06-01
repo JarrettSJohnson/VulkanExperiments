@@ -4,6 +4,7 @@
 #include "Camera.hpp"
 #include "Light.hpp"
 #include <chrono>
+#include <random>
 
 Application::Application() {}
 
@@ -195,7 +196,7 @@ void Application::setupCommandBuffers(
   renderPassBeginInfo.renderArea.extent = m_swapchain.extent();
 
   std::array<vk::ClearValue, 2> clearValues{};
-  clearValues[0].color = std::array{0.0f, 0.0f, 0.0f, 1.0f};
+  clearValues[0].color = std::array{0.0f, 0.4f, 0.6f, 1.0f};
   clearValues[1].depthStencil = {{1.0f, 0}};
   renderPassBeginInfo.clearValueCount =
       static_cast<std::uint32_t>(clearValues.size());
@@ -492,9 +493,20 @@ void Application::present(std::uint32_t imageIdx)
   currentFrame = (currentFrame + 1) % framesInFlight;
 }
 
+static std::string printVec3(const glm::vec3 vec) {
+  std::string str = "(";
+  str += std::to_string(vec.x);
+  str += ", ";
+  str += std::to_string(vec.y);
+  str += ", ";
+  str += std::to_string(vec.z);
+  str += ")";
+  return str;
+}
+
 void Application::run()
 {
-  m_window = Window{800, 600};
+  m_window = Window{1024, 576};
   initVulkan();
   setupDebugMessenger();
   m_surface = m_window.createSurface(*m_instance);
@@ -503,8 +515,44 @@ void Application::run()
   createCommandPool();
 
   createUniformBuffers();
-  m_texture = Texture{m_device, "../assets/cat_diff.tga"};
-  m_model = Model{m_device, "../assets/cat.obj"};
+  //m_texture = Texture{m_device, "../assets/cat_diff.tga"};
+ // m_model = Model{m_device, "../assets/cat.obj"};
+  std::vector<std::string> names{"mc", "hair", "keebo", "rantaro"};
+  std::mt19937 mt{std::random_device{}()};
+  std::uniform_int_distribution<int> dist(0, names.size());
+  std::vector<Texture> textures;
+  textures.reserve(4);
+  for (unsigned int i = 0; i < names.size(); ++i)
+  {
+    textures.emplace_back(
+        m_device, std::string{"../assets/dangan/"} + names[i] + ".png");
+    
+  }
+  
+  std::vector<Model> models;
+  std::vector<glm::mat4> mvps;
+  unsigned int num = 16;
+  models.reserve(num);
+  for (int i = 0; i < num; i++)
+  {
+    auto randIdx = dist(mt);
+         // models.emplace_back(
+         //    m_device, std::string{"../assets/dangan/"} + names[randIdx] +
+          //    ".obj");
+        models.emplace_back(m_device,
+            std::string{"../assets/dangan/"} + names.front() + ".obj");
+    mvps.emplace_back(glm::mat4(1.0f));
+    
+  }
+  float rotation{};
+  for (auto& mat : mvps)
+  {
+    mat =
+        glm::rotate(mat, glm::radians(rotation), glm::vec3(0.0f, 1.0f, 0.0f));
+    mat = glm::translate(mat, glm::vec3(0.0f, 0.0f, 2.0f));
+    mat = glm::rotate(mat, glm::radians(180.f), glm::vec3(0.0f, 1.0f, 0.0f));
+    rotation += 360.f / num;
+  }
 
   CubedLight light{m_device};
   // light.light.pos = glm::vec3(0.0f, 0.0f, 0.0f);
@@ -520,7 +568,7 @@ void Application::run()
   createRenderPass();
 
   offscreenDescriptorSets.addUBO(*m_UBO);
-  offscreenDescriptorSets.addSampler(m_texture);
+  offscreenDescriptorSets.addSampler(textures.front());
   offscreenDescriptorSets.generateLayout(m_device);
   offscreenDescriptorSets.generatePool(m_device);
 
@@ -538,10 +586,14 @@ void Application::run()
   createFramebuffers();
 
   std::vector<Application::IndexInfo> vBuffers;
-  vBuffers.push_back(
+  /*vBuffers.push_back(
       {m_model.vertexBuffer(), m_model.indexBuffer(), m_model.numIndices()});
   vBuffers.push_back(
-      {m_model.vertexBuffer(), m_model.indexBuffer(), m_model.numIndices()});
+      {m_model.vertexBuffer(), m_model.indexBuffer(), m_model.numIndices()});*/
+  for (auto& model : models) {
+    vBuffers.push_back(
+        {model.vertexBuffer(), model.indexBuffer(), model.numIndices()});
+  }
 
   m_UBO->map();
 
@@ -557,7 +609,8 @@ void Application::run()
   while (!m_window.shouldClose()) {
     m_window.processInputWindow();
     m_window.processInputCamera(camera);
-    camera.setDir(m_window.getNewDir());
+    camera.moveYawPitch(m_window.getMouseOffset());
+    //camera.setDir(m_window.getNewDir());
 
     glfwPollEvents();
 
@@ -576,8 +629,12 @@ void Application::run()
         10.0f);
     proj[1][1] *= -1;
 
-    vBuffers[0].pushConstants.model = model;
-    vBuffers[1].pushConstants.model = light.transform();
+	for (unsigned int i = 0; i < vBuffers.size(); ++i) {
+      vBuffers[i].pushConstants.model = mvps[i];
+      
+    }
+   // vBuffers[0].pushConstants.model = model;
+   // vBuffers[1].pushConstants.model = light.transform();
     m_UBO->get().projview = proj * view;
     m_UBO->get().viewPosition =
         glm::vec4(viewPos.x, viewPos.y, viewPos.z, 0.0f);
@@ -587,7 +644,7 @@ void Application::run()
         light.light.color.r, light.light.color.g, light.light.color.b, 1.0f);
     auto imageIdx = getImageIdx();
     updateUniformBuffer(imageIdx);
-    setupCommandBuffers(vBuffers, currentFrame);
+   
     
 
     ImGuiIO& io = ImGui::GetIO();
@@ -605,7 +662,8 @@ void Application::run()
     ImGui::SetNextWindowSize(
         ImVec2(guiWidth, guiHeight), ImGuiSetCond_FirstUseEver);
     ImGui::Begin("Vulkan Example", nullptr);
-    ImGui::TextUnformatted("Title");
+   // ImGui::TextUnformatted(printVec3(camera.position()).c_str());
+   // ImGui::TextUnformatted(printVec3(camera.dir()).c_str());
 
     ImGui::PushItemWidth(110.0f * 1.0f);
     // OnUpdateUIOverlay(&UIOverlay);
@@ -614,8 +672,9 @@ void Application::run()
     ImGui::End();
     ImGui::PopStyleVar();
     ImGui::Render();
-    ui->update();
     
+    ui->update();
+    setupCommandBuffers(vBuffers, currentFrame);
 
 	drawFrame(imageIdx);
 

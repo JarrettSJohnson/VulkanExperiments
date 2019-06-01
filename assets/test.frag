@@ -21,7 +21,7 @@ void main(){
     vec4 objectColor = texture(texSampler, fragTexCoord);
 
     //Ambient
-    float ambientStrength = 0.3;
+    float ambientStrength = 0.9;
     vec3 ambient = ambientStrength * ubo.lightColor.xyz;
   	
   	//Diffuse
@@ -38,5 +38,10 @@ void main(){
     vec3 specular = specularStrength * spec * ubo.lightColor.xyz;
         
     vec3 result = (ambient + diffuse + specular) * objectColor.xyz;
-    outColor = vec4(result, 1.0);
+
+    if(gl_FrontFacing){
+      outColor = vec4(result, 1.0);
+    } else {
+      outColor = vec4(0.0, 0.0, 0.0, 1.0);
+    }
 }

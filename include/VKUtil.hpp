@@ -466,9 +466,9 @@ inline vk::UniqueSampler createTextureSampler(
   vk::SamplerCreateInfo samplerInfo{};
   samplerInfo.minFilter = vk::Filter::eLinear;
   samplerInfo.magFilter = vk::Filter::eLinear;
-  samplerInfo.addressModeU = vk::SamplerAddressMode::eRepeat;
-  samplerInfo.addressModeV = vk::SamplerAddressMode::eRepeat;
-  samplerInfo.addressModeW = vk::SamplerAddressMode::eRepeat;
+  samplerInfo.addressModeU = vk::SamplerAddressMode::eClampToBorder;
+  samplerInfo.addressModeV = samplerInfo.addressModeU;
+  samplerInfo.addressModeW = samplerInfo.addressModeU;
   samplerInfo.anisotropyEnable = VK_TRUE;
   samplerInfo.maxAnisotropy = 16;
   samplerInfo.borderColor = vk::BorderColor::eIntOpaqueBlack;

@@ -104,11 +104,11 @@ public:
   const bool enableValidationLayers = true;
 #endif
 
-  Model m_model;
+  //Model m_model;
 
   std::uint32_t m_mipLevels{};
 
-  Texture m_texture{};
+  //Texture m_texture{};
 
   DescriptorSet offscreenDescriptorSets{};
   // TODO: generate takes a size for blah blah swapchain

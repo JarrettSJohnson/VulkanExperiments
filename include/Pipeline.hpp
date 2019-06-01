@@ -79,8 +79,8 @@ public:
 
     rasterizationStateCreateInfo.polygonMode = vk::PolygonMode::eFill;
     rasterizationStateCreateInfo.lineWidth = 1.0f;
-    rasterizationStateCreateInfo.cullMode = vk::CullModeFlagBits::eBack;
-    rasterizationStateCreateInfo.frontFace = vk::FrontFace::eCounterClockwise;
+    rasterizationStateCreateInfo.cullMode = vk::CullModeFlagBits::eNone;
+    rasterizationStateCreateInfo.frontFace = vk::FrontFace::eClockwise;
 
     multisampleStateCreateInfo.rasterizationSamples = sampleCount;
 
