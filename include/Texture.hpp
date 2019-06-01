@@ -41,9 +41,11 @@ public:
         vk::MemoryPropertyFlagBits::eHostVisible |
             vk::MemoryPropertyFlagBits::eHostCoherent);
     void* data;
+    // TODO: DOUBLE CHECK THIS
     device.device().mapMemory(
         *stagingBufferMemory, 0, size, vk::MemoryMapFlags{}, &data);
     std::memcpy(data, m_rawImage.data(), static_cast<std::size_t>(size));
+	
     device.device().unmapMemory(*stagingBufferMemory);
 
     auto [width, height] = m_rawImage.dimensions();

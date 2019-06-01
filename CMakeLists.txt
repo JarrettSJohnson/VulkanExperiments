@@ -15,6 +15,11 @@ add_executable(VulkanTutorial
     src/Device.cpp
     src/Model.cpp
     src/Texture.cpp
+    src/UIOverlay.cpp
+
+    dep/imgui/imgui_draw.cpp
+    dep/imgui/imgui_widgets.cpp
+    dep/imgui/imgui.cpp
 )
 
 target_include_directories(VulkanTutorial PUBLIC
@@ -24,6 +29,7 @@ target_include_directories(VulkanTutorial PUBLIC
     dep/glm/
     dep/tinyobjloader/
     dep/stb/
+    dep/imgui/
 )
 
 set_target_properties(VulkanTutorial PROPERTIES

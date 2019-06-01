@@ -68,6 +68,10 @@ public:
       camera.translate(cameraSpeed * camera.dir());
     if (glfwGetKey(m_window, GLFW_KEY_S) == GLFW_PRESS)
       camera.translate(-cameraSpeed * camera.dir());
+    if (glfwGetKey(m_window, GLFW_KEY_E) == GLFW_PRESS)
+      camera.translate(cameraSpeed * camera.up);
+    if (glfwGetKey(m_window, GLFW_KEY_R) == GLFW_PRESS)
+      camera.translate(-cameraSpeed * camera.up);
     if (glfwGetKey(m_window, GLFW_KEY_A) == GLFW_PRESS)
       camera.translate(
           -glm::normalize(glm::cross(camera.dir(), camera.up)) * cameraSpeed);

@@ -98,6 +98,11 @@ public:
     colorBlendStateCreateInfo.logicOp = vk::LogicOp::eCopy;
     colorBlendStateCreateInfo.attachmentCount = 1;
     colorBlendStateCreateInfo.pAttachments = &colorBlendAttachment;
+
+	
+
+	dynamicStateCreateInfo.dynamicStateCount = dynamicStateEnables.size();
+    dynamicStateCreateInfo.pDynamicStates = dynamicStateEnables.data();
   };
 
   template <typename VertexType> void addVertexDescription()
@@ -144,6 +149,7 @@ public:
         &depthStencilStateCreateInfo;
     graphicsPipelineCreateInfo.layout = layout.layout();
     graphicsPipelineCreateInfo.renderPass = renderPass.renderpass();
+    graphicsPipelineCreateInfo.pDynamicState = &dynamicStateCreateInfo;
     m_graphicsPipeline = device.device().createGraphicsPipelineUnique(
         vk::PipelineCache{}, graphicsPipelineCreateInfo);
   }
@@ -158,6 +164,9 @@ private:
   vk::Viewport viewport{};
   vk::Rect2D scissors{};
   vk::PipelineViewportStateCreateInfo viewportStateCreateInfo{};
+  std::array<vk::DynamicState, 2> dynamicStateEnables{
+      vk::DynamicState::eViewport, vk::DynamicState::eScissor};
+  vk::PipelineDynamicStateCreateInfo dynamicStateCreateInfo{};
   vk::PipelineRasterizationStateCreateInfo rasterizationStateCreateInfo{};
   vk::PipelineMultisampleStateCreateInfo multisampleStateCreateInfo{};
   vk::PipelineDepthStencilStateCreateInfo depthStencilStateCreateInfo{};

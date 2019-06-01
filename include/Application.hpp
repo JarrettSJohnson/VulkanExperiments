@@ -19,6 +19,7 @@
 #include "Swapchain.hpp"
 #include "Texture.hpp"
 #include "UBO.hpp"
+#include "UIOverlay.hpp"
 
 inline VkResult CreateDebugUtilsMessengerEXT(VkInstance instance,
     const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo,
@@ -112,6 +113,8 @@ public:
   DescriptorSet offscreenDescriptorSets{};
   // TODO: generate takes a size for blah blah swapchain
   std::vector<DescriptorSet> m_DescriptorSet{}; // 2?
+
+  std::unique_ptr<UIOverlay> ui;
 
   /*vk::UniqueDescriptorPool offscreenDescriptorPool{};
   std::vector<vk::DescriptorSet> offscreenDescriptorSets{};
