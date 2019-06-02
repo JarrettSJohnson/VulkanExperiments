@@ -4,6 +4,19 @@
 
 #include "Camera.hpp"
 #include <GLFW/glfw3.h>
+#include <iostream>
+
+inline std::string printVec3(const glm::vec3 vec)
+{
+  std::string str = "(";
+  str += std::to_string(vec.x);
+  str += ", ";
+  str += std::to_string(vec.y);
+  str += ", ";
+  str += std::to_string(vec.z);
+  str += ")";
+  return str;
+}
 
 class Window
 {
@@ -69,19 +82,21 @@ public:
     if (glfwGetKey(m_window, GLFW_KEY_S) == GLFW_PRESS)
       camera.translate(-cameraSpeed * camera.dir());
     if (glfwGetKey(m_window, GLFW_KEY_R) == GLFW_PRESS)
-      camera.translate(cameraSpeed * camera.up);
+      camera.translate(cameraSpeed * camera.up());
     if (glfwGetKey(m_window, GLFW_KEY_T) == GLFW_PRESS)
-      camera.translate(-cameraSpeed * camera.up);
-    if (glfwGetKey(m_window, GLFW_KEY_Q) == GLFW_PRESS)
-      camera.roll(5);
-    if (glfwGetKey(m_window, GLFW_KEY_E) == GLFW_PRESS)
-      camera.roll(-5);
+      camera.translate(-cameraSpeed * camera.up());
+   // if (glfwGetKey(m_window, GLFW_KEY_Q) == GLFW_PRESS)
+   //   camera.roll(5);
+   // if (glfwGetKey(m_window, GLFW_KEY_E) == GLFW_PRESS)
+   //   camera.roll(-5);
     if (glfwGetKey(m_window, GLFW_KEY_A) == GLFW_PRESS)
       camera.translate(
-          -glm::normalize(glm::cross(camera.dir(), camera.up)) * cameraSpeed);
+          -glm::normalize(glm::cross(camera.dir(), camera.up())) * cameraSpeed);
     if (glfwGetKey(m_window, GLFW_KEY_D) == GLFW_PRESS)
       camera.translate(
-          glm::normalize(glm::cross(camera.dir(), camera.up)) * cameraSpeed);
+          glm::normalize(glm::cross(camera.dir(), camera.up())) * cameraSpeed);
+    if (glfwGetKey(m_window, GLFW_KEY_SPACE) == GLFW_PRESS)
+      std::cout << printVec3(camera.position()) << std::endl;
   }
   void processMouseDelta(double _xpos, double _ypos)
   {

@@ -305,12 +305,12 @@ bool UIOverlay::update()
   if ((!vertexBuffer.m_buffer) || (vertexCount != imDrawData->TotalVtxCount)) {
     vertexBuffer.unmap();
     /// vertexBuffer.destroy();
-    /*vk::BufferCreateInfo bufferCreateInfo{};
+    vk::BufferCreateInfo bufferCreateInfo{};
     bufferCreateInfo.sharingMode = vk::SharingMode::eExclusive;
     bufferCreateInfo.usage = vk::BufferUsageFlagBits::eVertexBuffer;
     bufferCreateInfo.size = vertexBufferSize;
     vertexBuffer.m_buffer =
-        device->device().createBufferUnique(bufferCreateInfo);*/
+        device->device().createBufferUnique(bufferCreateInfo);
     vertexBuffer.generate(vk::BufferUsageFlagBits::eVertexBuffer,
         vk::MemoryPropertyFlagBits::eHostVisible, vertexBufferSize);
     vertexCount = imDrawData->TotalVtxCount;
@@ -325,13 +325,13 @@ bool UIOverlay::update()
   VkDeviceSize indexSize = imDrawData->TotalIdxCount * sizeof(ImDrawIdx);
   if ((!indexBuffer.m_buffer) || (indexCount < imDrawData->TotalIdxCount)) {
     indexBuffer.unmap();
-   /* vk::BufferCreateInfo bufferCreateInfo{};
+    vk::BufferCreateInfo bufferCreateInfo{};
     bufferCreateInfo.sharingMode = vk::SharingMode::eExclusive;
     bufferCreateInfo.usage = vk::BufferUsageFlagBits::eIndexBuffer;
     bufferCreateInfo.size = indexBufferSize;
 
     indexBuffer.m_buffer =
-        device->device().createBufferUnique(bufferCreateInfo);*/
+        device->device().createBufferUnique(bufferCreateInfo);
     indexBuffer.generate(vk::BufferUsageFlagBits::eIndexBuffer,
         vk::MemoryPropertyFlagBits::eHostVisible, indexBufferSize);
 

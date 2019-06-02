@@ -1,10 +1,14 @@
 #include "Application.hpp"
 #include "Shader.hpp"
 
+#include "Animation.hpp"
 #include "Camera.hpp"
 #include "Light.hpp"
 #include <chrono>
 #include <random>
+#include <thread>
+
+using namespace std::chrono_literals;
 
 Application::Application() {}
 
@@ -270,7 +274,7 @@ void Application::setupCommandBuffers(
 
   m_commandBuffers[i]->draw(3, 1, 0, 0);
 
-   ui->draw(m_swapchain.extent().width, m_swapchain.extent().height,
+  ui->draw(m_swapchain.extent().width, m_swapchain.extent().height,
       *m_commandBuffers[i]);
 
   m_commandBuffers[i]->endRenderPass();
@@ -493,17 +497,6 @@ void Application::present(std::uint32_t imageIdx)
   currentFrame = (currentFrame + 1) % framesInFlight;
 }
 
-static std::string printVec3(const glm::vec3 vec) {
-  std::string str = "(";
-  str += std::to_string(vec.x);
-  str += ", ";
-  str += std::to_string(vec.y);
-  str += ", ";
-  str += std::to_string(vec.z);
-  str += ")";
-  return str;
-}
-
 void Application::run()
 {
   m_window = Window{1024, 576};
@@ -515,40 +508,34 @@ void Application::run()
   createCommandPool();
 
   createUniformBuffers();
-  //m_texture = Texture{m_device, "../assets/cat_diff.tga"};
- // m_model = Model{m_device, "../assets/cat.obj"};
+  // m_texture = Texture{m_device, "../assets/cat_diff.tga"};
+  // m_model = Model{m_device, "../assets/cat.obj"};
   std::vector<std::string> names{"mc", "hair", "keebo", "rantaro"};
   std::mt19937 mt{std::random_device{}()};
   std::uniform_int_distribution<int> dist(0, names.size());
   std::vector<Texture> textures;
   textures.reserve(4);
-  for (unsigned int i = 0; i < names.size(); ++i)
-  {
+  for (unsigned int i = 0; i < names.size(); ++i) {
     textures.emplace_back(
         m_device, std::string{"../assets/dangan/"} + names[i] + ".png");
-    
   }
-  
+
   std::vector<Model> models;
   std::vector<glm::mat4> mvps;
   unsigned int num = 16;
   models.reserve(num);
-  for (int i = 0; i < num; i++)
-  {
+  for (int i = 0; i < num; i++) {
     auto randIdx = dist(mt);
-         // models.emplace_back(
-         //    m_device, std::string{"../assets/dangan/"} + names[randIdx] +
-          //    ".obj");
-        models.emplace_back(m_device,
-            std::string{"../assets/dangan/"} + names.front() + ".obj");
+    // models.emplace_back(
+    //    m_device, std::string{"../assets/dangan/"} + names[randIdx] +
+    //    ".obj");
+    models.emplace_back(
+        m_device, std::string{"../assets/dangan/"} + names.front() + ".obj");
     mvps.emplace_back(glm::mat4(1.0f));
-    
   }
   float rotation{};
-  for (auto& mat : mvps)
-  {
-    mat =
-        glm::rotate(mat, glm::radians(rotation), glm::vec3(0.0f, 1.0f, 0.0f));
+  for (auto& mat : mvps) {
+    mat = glm::rotate(mat, glm::radians(rotation), glm::vec3(0.0f, 1.0f, 0.0f));
     mat = glm::translate(mat, glm::vec3(0.0f, 0.0f, 2.0f));
     mat = glm::rotate(mat, glm::radians(180.f), glm::vec3(0.0f, 1.0f, 0.0f));
     rotation += 360.f / num;
@@ -606,20 +593,39 @@ void Application::run()
   ui->prepareResources();
   ui->preparePipeline(m_renderPass->renderpass());
 
+  AnimateSystem animSys{};
+  auto& testAnim = animSys.addAnimation(true);
+  auto& keyframe = testAnim.addKeyFrame(700.f);
+  TransformComponents beginLinear{};
+  beginLinear.pos = camera.position();
+  TransformComponents endLinear{};
+  endLinear.pos = glm::vec3(-0.052f, 1.431f, -0.818f);
+  keyframe.setTranslationInterpMode<Linear>(beginLinear, endLinear);
+  auto& keyframe2 = testAnim.addKeyFrame(2750.f);
+  TransformComponents beginLinear2{};
+  beginLinear2.pos = endLinear.pos;
+  TransformComponents endLinear2{};
+  endLinear2.pos = beginLinear2.pos + glm::vec3(0.1f, 0.0f, 0.0f);
+  keyframe2.setTranslationInterpMode<Linear>(beginLinear2, endLinear2);
+
+  testAnim.setPosition(camera.position());
+
+  auto start_frame = std::chrono::high_resolution_clock::now();
+  // 60fps = 16.67 ms per frame
+  const auto frame_time = std::chrono::microseconds(16667);
+
   while (!m_window.shouldClose()) {
     m_window.processInputWindow();
     m_window.processInputCamera(camera);
     camera.moveYawPitch(m_window.getMouseOffset());
-    //camera.setDir(m_window.getNewDir());
+    // camera.setDir(m_window.getNewDir());
 
     glfwPollEvents();
 
-    static auto startTime = std::chrono::high_resolution_clock::now();
-
     auto currentTime = std::chrono::high_resolution_clock::now();
-    float time = std::chrono::duration<float, std::chrono::seconds::period>(
-        currentTime - startTime)
-                     .count();
+    float dt = std::chrono::duration_cast<std::chrono::milliseconds>(frame_time)
+                   .count();
+    animSys.animate(dt);
 
     auto model = glm::mat4(1.0f);
     auto view = camera.view();
@@ -629,12 +635,11 @@ void Application::run()
         10.0f);
     proj[1][1] *= -1;
 
-	for (unsigned int i = 0; i < vBuffers.size(); ++i) {
+    for (unsigned int i = 0; i < vBuffers.size(); ++i) {
       vBuffers[i].pushConstants.model = mvps[i];
-      
     }
-   // vBuffers[0].pushConstants.model = model;
-   // vBuffers[1].pushConstants.model = light.transform();
+    // vBuffers[0].pushConstants.model = model;
+    // vBuffers[1].pushConstants.model = light.transform();
     m_UBO->get().projview = proj * view;
     m_UBO->get().viewPosition =
         glm::vec4(viewPos.x, viewPos.y, viewPos.z, 0.0f);
@@ -644,26 +649,23 @@ void Application::run()
         light.light.color.r, light.light.color.g, light.light.color.b, 1.0f);
     auto imageIdx = getImageIdx();
     updateUniformBuffer(imageIdx);
-   
-    
 
     ImGuiIO& io = ImGui::GetIO();
     io.DisplaySize = ImVec2((float) m_swapchain.extent().width,
         (float) m_swapchain.extent().height);
     ImGui::NewFrame();
-    //ui.update();
-    //ui.draw(*m_commandBuffers[imageIdx]);
+    // ui.update();
+    // ui.draw(*m_commandBuffers[imageIdx]);
     auto guiWidth = 300;
     auto guiHeight = 100;
     auto [width, height] = m_swapchain.extent();
     ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0);
-    ImGui::SetNextWindowPos(
-        ImVec2(10, height - guiHeight - 10));
+    ImGui::SetNextWindowPos(ImVec2(10, height - guiHeight - 10));
     ImGui::SetNextWindowSize(
         ImVec2(guiWidth, guiHeight), ImGuiSetCond_FirstUseEver);
     ImGui::Begin("Vulkan Example", nullptr);
-   // ImGui::TextUnformatted(printVec3(camera.position()).c_str());
-   // ImGui::TextUnformatted(printVec3(camera.dir()).c_str());
+    // ImGui::TextUnformatted(printVec3(camera.position()).c_str());
+    // ImGui::TextUnformatted(printVec3(camera.dir()).c_str());
 
     ImGui::PushItemWidth(110.0f * 1.0f);
     // OnUpdateUIOverlay(&UIOverlay);
@@ -672,13 +674,19 @@ void Application::run()
     ImGui::End();
     ImGui::PopStyleVar();
     ImGui::Render();
-    
+
     ui->update();
     setupCommandBuffers(vBuffers, currentFrame);
 
-	drawFrame(imageIdx);
+    drawFrame(imageIdx);
 
     present(imageIdx);
+    auto endTime = start_frame + frame_time;
+    // auto remainingTime = endTime -
+    // std::chrono::high_resolution_clock::now(); std::cout <<
+    // remainingTime.count() << '\n';
+    std::this_thread::sleep_until(endTime);
+    start_frame += frame_time;
   }
   m_UBO->unmap();
   m_device.device().waitIdle();
