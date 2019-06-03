@@ -3,19 +3,21 @@
 #define GLFW_INCLUDE_VULKAN
 
 #include "Camera.hpp"
+#include "Util.hpp"
 #include <GLFW/glfw3.h>
 #include <iostream>
 
-inline std::string printVec3(const glm::vec3 vec)
+#include "Animation.hpp"
+
+
+inline TransformComponents transformFromCamera(const Camera& cam)
 {
-  std::string str = "(";
-  str += std::to_string(vec.x);
-  str += ", ";
-  str += std::to_string(vec.y);
-  str += ", ";
-  str += std::to_string(vec.z);
-  str += ")";
-  return str;
+  TransformComponents comps{};
+  comps.pos = cam.position();
+  comps.pitch = cam.pitch();
+  comps.yaw = cam.yaw();
+  comps.roll = cam.roll();
+  return comps;
 }
 
 class Window
@@ -95,8 +97,10 @@ public:
     if (glfwGetKey(m_window, GLFW_KEY_D) == GLFW_PRESS)
       camera.translate(
           glm::normalize(glm::cross(camera.dir(), camera.up())) * cameraSpeed);
+    //if (glfwGetKey(m_window, GLFW_KEY_SPACE) == GLFW_PRESS)
+    //  std::cout << printVec3(camera.position()) << std::endl;
     if (glfwGetKey(m_window, GLFW_KEY_SPACE) == GLFW_PRESS)
-      std::cout << printVec3(camera.position()) << std::endl;
+      std::cout << transformFromCamera(camera).to_string() << std::endl;
   }
   void processMouseDelta(double _xpos, double _ypos)
   {

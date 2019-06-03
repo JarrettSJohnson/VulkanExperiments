@@ -8,6 +8,14 @@
 #include <random>
 #include <thread>
 
+void updateCameraTransform(const TransformComponents& tData, Camera& camera)
+{
+  camera.m_pos = tData.pos;
+  camera.m_pitch = tData.pitch;
+  camera.m_yaw = tData.yaw;
+  // camera.m_roll = tData.roll;
+}
+
 using namespace std::chrono_literals;
 
 Application::Application() {}
@@ -332,11 +340,11 @@ void Application::createPipeline()
   Shader offscreenVertShader{
       m_device, "../assets/test.vert.spv", Shader::ShaderType::VERTEX};
   Shader offscreenFragShader{
-      m_device, "../assets/test.frag.spv", Shader::ShaderType::FRAGMENT};
+      m_device, "../assets/characters.frag.spv", Shader::ShaderType::FRAGMENT};
   vk::PushConstantRange pushConstantRange{};
   pushConstantRange.stageFlags =
       vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment;
-  pushConstantRange.size = sizeof(PushConstants);
+  pushConstantRange.size = sizeof(DanganPushConstants);
 
   offscreenPipelineLayout = PipelineLayout{m_device, m_swapchain,
       offscreenDescriptorSets.layout(), pushConstantRange};
@@ -508,13 +516,14 @@ void Application::run()
   createCommandPool();
 
   createUniformBuffers();
-  // m_texture = Texture{m_device, "../assets/cat_diff.tga"};
-  // m_model = Model{m_device, "../assets/cat.obj"};
-  std::vector<std::string> names{"mc", "hair", "keebo", "rantaro"};
+
+  std::vector<std::string> names{"mc", "keebo", "hair", "rantaro", "mc",
+      "keebo", "hair", "rantaro", "mc", "keebo", "hair", "rantaro", "mc",
+      "keebo", "hair", "rantaro"};
   std::mt19937 mt{std::random_device{}()};
   std::uniform_int_distribution<int> dist(0, names.size());
   std::vector<Texture> textures;
-  textures.reserve(4);
+  textures.reserve(names.size());
   for (unsigned int i = 0; i < names.size(); ++i) {
     textures.emplace_back(
         m_device, std::string{"../assets/dangan/"} + names[i] + ".png");
@@ -530,7 +539,7 @@ void Application::run()
     //    m_device, std::string{"../assets/dangan/"} + names[randIdx] +
     //    ".obj");
     models.emplace_back(
-        m_device, std::string{"../assets/dangan/"} + names.front() + ".obj");
+        m_device, std::string{"../assets/dangan/"} + names[i] + ".obj");
     mvps.emplace_back(glm::mat4(1.0f));
   }
   float rotation{};
@@ -555,7 +564,8 @@ void Application::run()
   createRenderPass();
 
   offscreenDescriptorSets.addUBO(*m_UBO);
-  offscreenDescriptorSets.addSampler(textures.front());
+  // offscreenDescriptorSets.addTexture(textures.front());
+  offscreenDescriptorSets.addTextureArray(textures);
   offscreenDescriptorSets.generateLayout(m_device);
   offscreenDescriptorSets.generatePool(m_device);
 
@@ -597,18 +607,32 @@ void Application::run()
   auto& testAnim = animSys.addAnimation(true);
   auto& keyframe = testAnim.addKeyFrame(700.f);
   TransformComponents beginLinear{};
-  beginLinear.pos = camera.position();
-  TransformComponents endLinear{};
+  beginLinear = transformFromCamera(camera);
+  TransformComponents endLinear = beginLinear;
   endLinear.pos = glm::vec3(-0.052f, 1.431f, -0.818f);
   keyframe.setTranslationInterpMode<Linear>(beginLinear, endLinear);
+
   auto& keyframe2 = testAnim.addKeyFrame(2750.f);
-  TransformComponents beginLinear2{};
-  beginLinear2.pos = endLinear.pos;
-  TransformComponents endLinear2{};
+  TransformComponents beginLinear2 = endLinear;
+  TransformComponents endLinear2 = beginLinear;
   endLinear2.pos = beginLinear2.pos + glm::vec3(0.1f, 0.0f, 0.0f);
   keyframe2.setTranslationInterpMode<Linear>(beginLinear2, endLinear2);
 
-  testAnim.setPosition(camera.position());
+  auto& keyframe3 = testAnim.addKeyFrame(300.0f);
+  TransformComponents beginLinear3 = endLinear2;
+  TransformComponents endLinear3 = beginLinear3;
+  endLinear3.pos = glm::vec3(0.876f, 0.515f, 0.332f);
+  endLinear3.yaw = 112.8f;
+  keyframe3.setTranslationInterpMode<Linear>(beginLinear3, endLinear3);
+
+  auto& keyframe4 = testAnim.addKeyFrame(1500.0f);
+  TransformComponents beginLinear4 = endLinear3;
+  TransformComponents endLinear4 = beginLinear4;
+  endLinear4.pos = beginLinear4.pos + glm::vec3(0.0f, 1.1f, 0.0f);
+  keyframe4.setTranslationInterpMode<Linear>(beginLinear4, endLinear4);
+
+  TransformComponents cameraTransformData = transformFromCamera(camera);
+  testAnim.setTransform(cameraTransformData);
 
   auto start_frame = std::chrono::high_resolution_clock::now();
   // 60fps = 16.67 ms per frame
@@ -625,7 +649,8 @@ void Application::run()
     auto currentTime = std::chrono::high_resolution_clock::now();
     float dt = std::chrono::duration_cast<std::chrono::milliseconds>(frame_time)
                    .count();
-    animSys.animate(dt);
+    if (animSys.animate(dt))
+      updateCameraTransform(cameraTransformData, camera);
 
     auto model = glm::mat4(1.0f);
     auto view = camera.view();
@@ -637,6 +662,7 @@ void Application::run()
 
     for (unsigned int i = 0; i < vBuffers.size(); ++i) {
       vBuffers[i].pushConstants.model = mvps[i];
+      vBuffers[i].pushConstants.charIdx = i;
     }
     // vBuffers[0].pushConstants.model = model;
     // vBuffers[1].pushConstants.model = light.transform();

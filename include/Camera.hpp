@@ -1,6 +1,9 @@
 #pragma once
 
+#include <string>
 #include <glm/glm.hpp>
+
+#include "Util.hpp"
 
 class Camera
 {
@@ -22,14 +25,20 @@ public:
     return rotate * translate;
   }
   glm::vec3& position() { return m_pos; }
+  glm::vec3 position() const { return m_pos; }
   void setDir(glm::vec3 d) { m_dir = d; }
   void setTar(glm::vec3 t) { m_tar = t; }
   glm::vec3 dir() const { return m_dir; }
   glm::vec3 up() const { return m_camUp; }
+
+  float yaw() const { return m_yaw; }
+  float pitch() const { return m_pitch; }
+  float roll() const { return m_roll; }
+
   void translate(glm::vec3 trans) { m_pos += trans; }
   void moveYawPitch(std::pair<float, float> dYawPitch)
   {
-   
+
     float sensitivity = 0.05f;
     m_yaw += sensitivity * dYawPitch.first;
     m_pitch += sensitivity * dYawPitch.second;
@@ -45,29 +54,30 @@ public:
     newUp.y =
         sin(m_yaw) * sin(m_pitch) * sin(m_roll) + cos(m_yaw) * cos(m_roll);
     newUp.z = cos(m_pitch) * sin(m_roll);
-	m_camUp = glm::normalize(newUp);
+    m_camUp = glm::normalize(newUp);
+
+    m_camUp = worldUp;
   }
-  void roll(float angle) {
-	float sensitivity = 0.05f;
+  void roll(float angle)
+  {
+    float sensitivity = 0.05f;
     m_roll += sensitivity * angle;
   }
   // glm::vec3 up = glm::normalize(glm::vec3(0.0f, 0.8f, 0.2f));
   static inline const glm::vec3 worldUp = glm::vec3(0.0f, 1.0f, 0.0f);
   glm::vec3 m_camUp = worldUp;
 
-private:
+//private:
   glm::vec3 m_pos = glm::vec3(-0.8714f, 1.431f, -0.4454);
   glm::vec3 m_tar = glm::vec3(0.0f, 0.0f, 0.0f);
   glm::vec3 m_dir = glm::vec3(0.0f, 0.0f, -1.0f);
-
-  
 
   float m_yaw{};
   float m_pitch{};
   float m_roll{};
 };
 
-    /*glm::mat4 mat(1.0f);
+/*glm::mat4 mat(1.0f);
 mat = glm::translate(mat, -m_pos);
 //mat = glm::rotate(mat, glm::radians(roll), glm::vec3(0.0f, 0.0f, 1.0f));
 mat = glm::rotate(mat, glm::radians(pitch), glm::vec3(-1.0f, 0.0f, 0.0f));

@@ -19,6 +19,16 @@ struct TransformComponents {
     comps.scale = scale - other.scale;
     return comps;
   }
+  std::string to_string() const
+  {
+    std::string ret = std::string("Transform info:\n") +
+                      "pos: " + printVec3(pos) + '\n' +
+                      "pitch: " + std::to_string(pitch) + '\n' +
+                      "yaw: " + std::to_string(yaw) + '\n' +
+                      "roll: " + std::to_string(roll) + '\n' +
+                      "scale: " + printVec3(scale) + '\n';
+    return ret;
+  }
 };
 
 class Linear
@@ -91,34 +101,36 @@ class Animation
 private:
   using KeyFrameIdx = std::size_t;
   std::vector<KeyFrame> keyframes;
-  glm::vec3* m_position{nullptr};
+  TransformComponents* m_tcomponents{nullptr};
   KeyFrameIdx m_idx{};
   bool m_loop{false};
   bool m_animating{false};
 
 public:
   Animation(bool loop) : m_loop{loop} {}
-  void setPosition(glm::vec3& position)
+  void setTransform(TransformComponents& transform)
   {
-    m_position = &position;
-    startingPos = position;
+    m_tcomponents = &transform;
+    startingPos = transform;
   }
-  glm::vec3* getPosition() const { return m_position; }
-  glm::vec3 startingPos{};
+  TransformComponents* getTransform() const { return m_tcomponents; }
+  TransformComponents startingPos{};
   KeyFrame& addKeyFrame(float duration)
   {
     return keyframes.emplace_back(duration);
   }
   bool animate(float dt)
   {
-    if (!m_animating && m_position && !keyframes.empty()) {
-      *m_position = startingPos;
+    if (!m_animating && m_tcomponents && !keyframes.empty()) {
+      *m_tcomponents = startingPos;
       m_animating = true;
 	}
     for (; m_idx < keyframes.size(); ++m_idx) {
       auto [leftover, transComp] = keyframes[m_idx].animate(dt);
 
-      *m_position += transComp.pos;
+      m_tcomponents->pos += transComp.pos;
+      m_tcomponents->yaw += transComp.yaw;
+      m_tcomponents->pitch += transComp.pitch;
       dt = leftover;
       if (dt < 1e-6) {
         break;
@@ -142,13 +154,14 @@ private:
 
 public:
   AnimateSystem() = default;
-  void bind(std::size_t animIdx, glm::vec3& position)
+  void bind(std::size_t animIdx, TransformComponents& transform)
   {
-    m_animations[animIdx].setPosition(position);
+    m_animations[animIdx].setTransform(transform);
   }
 
-  void animate(float dt)
+  bool animate(float dt)
   {
+    return m_animations.front().animate(dt);
     for (auto& animation : m_animations) {
       if (animation.animate(dt)) {
       }

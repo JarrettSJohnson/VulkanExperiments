@@ -206,7 +206,7 @@ public:
     vk::Buffer vBuffer{};
     vk::Buffer iBuffer{};
     std::uint32_t numIndices{};
-    PushConstants pushConstants{};
+    DanganPushConstants pushConstants{};
   };
   void allocateCommandBuffers();
   void setupCommandBuffers(

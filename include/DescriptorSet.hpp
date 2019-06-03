@@ -21,8 +21,13 @@ public:
   };
   struct SamplerDescriptorItem {
     vk::DescriptorSetLayoutBinding binding;
-    vk::ImageView view;
+    vk::ImageView view; // make these to pair
     vk::Sampler sampler;
+    std::uint32_t idx;
+  };
+  struct SamplerArrayDescriptorItem {
+    vk::DescriptorSetLayoutBinding binding;
+    std::vector<std::pair<vk::ImageView, vk::Sampler>> views;
     std::uint32_t idx;
   };
 
@@ -52,18 +57,41 @@ public:
     item.view = view;
     item.sampler = sampler;
   }
-  void addSampler(const Texture& texture)
+  void addSamplerArray(const std::vector<std::pair<vk::ImageView, vk::Sampler>>&
+          combinedSamplers)
+  {
+    auto& item = m_samplerArrayBindings.emplace_back();
+    item.idx = m_idx++;
+    item.binding.binding = item.idx;
+    item.binding.descriptorType = vk::DescriptorType::eCombinedImageSampler;
+    item.binding.descriptorCount = combinedSamplers.size();
+    item.binding.stageFlags = vk::ShaderStageFlagBits::eFragment;
+    for (const auto& sampler : combinedSamplers) {
+      item.views.emplace_back(sampler.first, sampler.second);
+    }
+  }
+  void addTexture(const Texture& texture)
   {
     addSampler(texture.view(), texture.sampler());
   }
-
+  void addTextureArray(const std::vector<Texture>& textures) {
+    std::vector<std::pair<vk::ImageView, vk::Sampler>> combinedSamplers;
+    for (const auto& texture : textures) {
+      combinedSamplers.emplace_back(texture.view(), texture.sampler());
+	}
+    addSamplerArray(combinedSamplers);
+  }
   void generateLayout(const Device& device)
   {
-    m_layout.resize(m_uniformBindings.size() + m_samplerBindings.size());
+    m_layout.resize(m_uniformBindings.size() + m_samplerBindings.size() +
+                    m_samplerArrayBindings.size());
     for (const auto& binding : m_uniformBindings) {
       m_layout[binding.idx] = binding.binding;
     }
     for (const auto& binding : m_samplerBindings) {
+      m_layout[binding.idx] = binding.binding;
+    }
+    for (const auto& binding : m_samplerArrayBindings) {
       m_layout[binding.idx] = binding.binding;
     }
     vk::DescriptorSetLayoutCreateInfo createInfo{};
@@ -144,6 +172,32 @@ public:
         device.device().updateDescriptorSets(1, &descriptorWrite, 0, nullptr);
       }
     }
+    //for (const auto& sampler : m_samplerArrayBindings) {
+    for (std::size_t s{0u}; s < m_samplerArrayBindings.size(); ++s){
+      const auto& sampler = m_samplerArrayBindings[s];
+      for (std::size_t i{0u}; i < m_descriptorSets.size(); ++i) {
+        std::vector<vk::DescriptorImageInfo> imageInfos;
+        imageInfos.reserve(sampler.views.size());
+        for (const auto& combinedSampler : sampler.views) {
+          auto& imageInfo = imageInfos.emplace_back();
+          imageInfo.imageLayout = vk::ImageLayout::eShaderReadOnlyOptimal;
+          imageInfo.imageView = combinedSampler.first;
+          imageInfo.sampler = combinedSampler.second;
+        }
+
+        vk::WriteDescriptorSet descriptorWrite{};
+
+        descriptorWrite.dstSet = m_descriptorSets[i];
+        descriptorWrite.dstBinding = sampler.binding.binding;
+        descriptorWrite.dstArrayElement = 0;
+        descriptorWrite.descriptorType =
+            vk::DescriptorType::eCombinedImageSampler;
+        descriptorWrite.descriptorCount = imageInfos.size();
+        descriptorWrite.pImageInfo = imageInfos.data();
+
+        device.device().updateDescriptorSets(1, &descriptorWrite, 0, nullptr);
+      }
+    }
   }
 
   void clear() { *this = DescriptorSet{}; }
@@ -161,5 +215,6 @@ private:
   std::vector<vk::DescriptorSet> m_descriptorSets{};
   std::vector<UBODescriptorItem> m_uniformBindings;
   std::vector<SamplerDescriptorItem> m_samplerBindings;
+  std::vector<SamplerArrayDescriptorItem> m_samplerArrayBindings;
   std::vector<vk::DescriptorSetLayoutBinding> m_layout;
 };
