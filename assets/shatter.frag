@@ -1,0 +1,17 @@
+#version 450
+
+layout (binding = 0) uniform sampler2D fontSampler;
+
+layout (location = 0) in vec2 inUV;
+
+layout (location = 0) out vec4 outColor;
+
+layout(push_constant) uniform PER_OBJECT 
+{ 
+  mat4 model;
+} pc;
+
+void main() 
+{
+	outColor = texture(fontSampler, inUV);
+}

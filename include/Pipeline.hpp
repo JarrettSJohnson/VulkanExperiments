@@ -80,7 +80,8 @@ public:
     rasterizationStateCreateInfo.polygonMode = vk::PolygonMode::eFill;
     rasterizationStateCreateInfo.lineWidth = 1.0f;
     rasterizationStateCreateInfo.cullMode = vk::CullModeFlagBits::eNone;
-    rasterizationStateCreateInfo.frontFace = vk::FrontFace::eClockwise;
+    rasterizationStateCreateInfo.frontFace = vk::FrontFace::eCounterClockwise;
+    /////CHANGE clockWise
 
     multisampleStateCreateInfo.rasterizationSamples = sampleCount;
 
@@ -99,9 +100,7 @@ public:
     colorBlendStateCreateInfo.attachmentCount = 1;
     colorBlendStateCreateInfo.pAttachments = &colorBlendAttachment;
 
-	
-
-	dynamicStateCreateInfo.dynamicStateCount = dynamicStateEnables.size();
+    dynamicStateCreateInfo.dynamicStateCount = dynamicStateEnables.size();
     dynamicStateCreateInfo.pDynamicStates = dynamicStateEnables.data();
   };
 

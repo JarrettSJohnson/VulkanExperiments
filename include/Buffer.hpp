@@ -6,7 +6,6 @@
 #include "Device.hpp"
 
 #include "Texture.hpp"
-#include "VKUtil.hpp"
 
 struct Buffer {
   Device* m_device{};
@@ -19,15 +18,11 @@ struct Buffer {
   vk::BufferUsageFlags m_usageFlags{};
   vk::MemoryPropertyFlags m_memoryPropertyFlags{};
 
+  Buffer() = default;
   Buffer(Device& device) : m_device{&device} {}
 
-  //make into constructor?
   void generate(vk::BufferUsageFlags flags,
-      vk::MemoryPropertyFlags memPropertyFlags, vk::DeviceSize size)
-  {
-    std::tie(m_buffer, m_memory) =
-        VKUtil::createBuffer(*m_device, size, flags, memPropertyFlags);
-  }
+      vk::MemoryPropertyFlags memPropertyFlags, vk::DeviceSize size);
 
   void map(vk::DeviceSize size = VK_WHOLE_SIZE, vk::DeviceSize offset = 0)
   {
@@ -40,11 +35,18 @@ struct Buffer {
     }
     m_mapped = nullptr;
   }
+  void mapCopy(void* src, vk::DeviceSize size)
+  {
+    map();
+    copyData(src, size);
+    unmap();
+  }
   void copyData(void* src, vk::DeviceSize size)
   {
     std::memcpy(m_mapped, src, size);
   }
-  void flush() {
+  void flush()
+  {
     vk::MappedMemoryRange mappedRange{};
     mappedRange.memory = *m_memory;
     mappedRange.size = VK_WHOLE_SIZE;

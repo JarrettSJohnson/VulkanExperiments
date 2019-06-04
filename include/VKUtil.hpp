@@ -174,6 +174,14 @@ inline void copyBuffer(Device& device, vk::Buffer srcBuffer,
   device.m_graphicsQueue.waitIdle();
 }
 
+/*
+FIX COMPILATION ERRORS TO ALLOW THIS
+
+inline void copyBuffer(Device& device, const Buffer& src, Buffer& dst)
+{
+  copyBuffer(device, *src.m_buffer, *dst.m_buffer);
+}
+*/
 inline bool hasStencilComponent(const vk::Format& format)
 {
   return format == vk::Format::eD32SfloatS8Uint ||
@@ -466,7 +474,9 @@ inline vk::UniqueSampler createTextureSampler(
   vk::SamplerCreateInfo samplerInfo{};
   samplerInfo.minFilter = vk::Filter::eLinear;
   samplerInfo.magFilter = vk::Filter::eLinear;
-  samplerInfo.addressModeU = vk::SamplerAddressMode::eClampToBorder;
+  //////samplerInfo.addressModeU = vk::SamplerAddressMode::eClampToBorder;
+  /////CHANGE
+  samplerInfo.addressModeU = vk::SamplerAddressMode::eRepeat;
   samplerInfo.addressModeV = samplerInfo.addressModeU;
   samplerInfo.addressModeW = samplerInfo.addressModeU;
   samplerInfo.anisotropyEnable = VK_TRUE;

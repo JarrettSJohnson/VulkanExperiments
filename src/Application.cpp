@@ -1,4 +1,6 @@
 #include "Application.hpp"
+#include "PostProcess.hpp"
+#include "ScreenShatter.hpp"
 #include "Shader.hpp"
 
 #include "Animation.hpp"
@@ -248,11 +250,6 @@ void Application::setupCommandBuffers(
     m_commandBuffers[i]->drawIndexed(buffer.numIndices, 1, 0, 0, 0);
   }
   m_commandBuffers[i]->endRenderPass();
-
-  // VKUtil::transitionImageLayout(m_device,
-  //    *offscreenRenderPass->attachments().back().image, m_swapchain.format(),
-  //     vk::ImageLayout::eUndefined, vk::ImageLayout::eShaderReadOnlyOptimal,
-  //     1);
 
   // BEGIN DEFAULT/FULLSCREEN RENDER PASS
   renderPassBeginInfo.renderPass = m_renderPass->renderpass();
@@ -517,6 +514,9 @@ void Application::run()
 
   createUniformBuffers();
 
+  ScreenShatter shatter{m_device};
+  shatter.triangles();
+
   std::vector<std::string> names{"mc", "keebo", "hair", "rantaro", "mc",
       "keebo", "hair", "rantaro", "mc", "keebo", "hair", "rantaro", "mc",
       "keebo", "hair", "rantaro"};
@@ -542,12 +542,31 @@ void Application::run()
         m_device, std::string{"../assets/dangan/"} + names[i] + ".obj");
     mvps.emplace_back(glm::mat4(1.0f));
   }
+
   float rotation{};
   for (auto& mat : mvps) {
     mat = glm::rotate(mat, glm::radians(rotation), glm::vec3(0.0f, 1.0f, 0.0f));
     mat = glm::translate(mat, glm::vec3(0.0f, 0.0f, 2.0f));
     mat = glm::rotate(mat, glm::radians(180.f), glm::vec3(0.0f, 1.0f, 0.0f));
     rotation += 360.f / num;
+  }
+
+  Model trialGround{
+      m_device, "../assets/dangan/trial_grounds/trial_grounds.obj"};
+  for (const auto& mesh : trialGround.meshes()) {
+    float scaleby = 1.51f;
+    mvps.push_back(
+        glm::scale(glm::mat4(1.0f), glm::vec3(scaleby, scaleby, scaleby)));
+  }
+  for (int i = 0; i < 10; ++i) {
+    textures.emplace_back(
+        m_device, std::string{"../assets/dangan/trial_grounds/diss_0"} +
+                      std::to_string(i) + ".png");
+  }
+  for (int i = 10; i < 14; ++i) {
+    textures.emplace_back(
+        m_device, std::string{"../assets/dangan/trial_grounds/diss_"} +
+                      std::to_string(i) + ".png");
   }
 
   CubedLight light{m_device};
@@ -587,9 +606,15 @@ void Application::run()
       {m_model.vertexBuffer(), m_model.indexBuffer(), m_model.numIndices()});
   vBuffers.push_back(
       {m_model.vertexBuffer(), m_model.indexBuffer(), m_model.numIndices()});*/
-  for (auto& model : models) {
+  for (const auto& model : models) {
+    for (const auto& mesh : model.meshes()) {
+      vBuffers.push_back(
+          {mesh.vertexBuffer(), mesh.indexBuffer(), mesh.numIndices()});
+    }
+  }
+  for (const auto& mesh : trialGround.meshes()) {
     vBuffers.push_back(
-        {model.vertexBuffer(), model.indexBuffer(), model.numIndices()});
+        {mesh.vertexBuffer(), mesh.indexBuffer(), mesh.numIndices()});
   }
 
   m_UBO->map();
@@ -657,7 +682,7 @@ void Application::run()
     auto viewPos = camera.position();
     auto proj = glm::perspective(glm::radians(45.0f),
         m_swapchain.extent().width / (float) m_swapchain.extent().height, 0.1f,
-        10.0f);
+        20.0f);
     proj[1][1] *= -1;
 
     for (unsigned int i = 0; i < vBuffers.size(); ++i) {

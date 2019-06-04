@@ -12,6 +12,7 @@ find_package(Vulkan REQUIRED)
 add_executable(VulkanTutorial
     src/main.cpp
     src/Application.cpp
+    src/Buffer.cpp
     src/Device.cpp
     src/Model.cpp
     src/Texture.cpp

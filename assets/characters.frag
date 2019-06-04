@@ -26,9 +26,9 @@ layout(location = 0) out vec4 outColor;
 void main(){
     vec4 objectColor = texture(texSampler[pc.charIdx], fragTexCoord);
 
-    if(!gl_FrontFacing){
-      outColor = vec4(0.0, 0.0, 0.0, 1.0);
-    } else {
+    //if(!gl_FrontFacing){
+   //   outColor = vec4(0.0, 0.0, 0.0, 1.0);
+   //} else {
       outColor = objectColor;
-    }
+   // }
 }

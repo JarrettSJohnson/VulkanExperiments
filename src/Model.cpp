@@ -15,9 +15,11 @@ Model::Model(Device& device, const std::filesystem::path& filename)
           filename.string().c_str())) {
     throw std::runtime_error(warn + err);
   }
-  std::unordered_map<Vertex, uint32_t> uniqueVertices{};
 
   for (const auto& shape : shapes) {
+    std::vector<Vertex> vertices;
+    std::vector<std::uint32_t> indices;
+    std::unordered_map<Vertex, uint32_t> uniqueVertices{};
     for (const auto& index : shape.mesh.indices) {
       Vertex vertex = {};
 
@@ -33,14 +35,12 @@ Model::Model(Device& device, const std::filesystem::path& filename)
           attrib.normals[3 * index.normal_index + 2]};
 
       if (uniqueVertices.count(vertex) == 0) {
-        uniqueVertices[vertex] = static_cast<uint32_t>(m_vertices.size());
-        m_vertices.push_back(vertex);
+        uniqueVertices[vertex] = static_cast<uint32_t>(vertices.size());
+        vertices.push_back(vertex);
       }
 
-      m_indices.push_back(uniqueVertices[vertex]);
+      indices.push_back(uniqueVertices[vertex]);
     }
-
-    createVertexBuffers(device);
-    createIndexBuffers(device);
+    m_meshes.emplace_back(device, std::move(vertices), std::move(indices));
   }
 }

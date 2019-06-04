@@ -5,7 +5,7 @@
 
 #include "Model.hpp"
 
-struct Cube : public Model {
+struct Cube : public Mesh {
   inline static float cubeVert[36][8] = {// clang-format off
     // bottom
     // TODO: WTF LAYOUT IS THIS
