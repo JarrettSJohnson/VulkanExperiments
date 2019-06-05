@@ -190,8 +190,8 @@ void Application::allocateCommandBuffers()
       m_device.device().allocateCommandBuffersUnique(allocateInfo);
 }
 
-void Application::setupCommandBuffers(
-    const std::vector<IndexInfo>& buffers, std::size_t currentFrame)
+void Application::setupCommandBuffers(const std::vector<IndexInfo>& buffers,
+    std::size_t currentFrame, const ScreenShatter& shatter)
 {
   std::size_t i = currentFrame;
 
@@ -252,7 +252,7 @@ void Application::setupCommandBuffers(
   m_commandBuffers[i]->endRenderPass();
 
   // BEGIN DEFAULT/FULLSCREEN RENDER PASS
-  renderPassBeginInfo.renderPass = m_renderPass->renderpass();
+  /*renderPassBeginInfo.renderPass = m_renderPass->renderpass();
   renderPassBeginInfo.framebuffer = m_framebuffers[i].framebuffer();
   m_commandBuffers[i]->beginRenderPass(
       renderPassBeginInfo, vk::SubpassContents::eInline);
@@ -264,20 +264,37 @@ void Application::setupCommandBuffers(
       static_cast<std::uint32_t>(defaultDS.size()), defaultDS.data(), 0,
       nullptr); ///
 
-  /*vk::Viewport viewport;
-  viewport.width = m_swapchain.extent().width;
-  viewport.height = m_swapchain.extent().height;
-  viewport.minDepth = 0.0f;
-  viewport.maxDepth = 1.0f;
-
-  vk::Rect2D scissor{};
-  scissor.extent = m_swapchain.extent();
-  scissor.offset = {{0}};*/
-
   m_commandBuffers[i]->setViewport(0, viewport);
   m_commandBuffers[i]->setScissor(0, 1, &scissor);
+  m_commandBuffers[i]->draw(3, 1, 0, 0);*/
 
-  m_commandBuffers[i]->draw(3, 1, 0, 0);
+  renderPassBeginInfo.renderPass = shatter.renderpass();
+  renderPassBeginInfo.framebuffer = shatter.framebuffer()[i].framebuffer();
+  std::array<vk::Buffer, 1> shatterVBuffer{shatter.vertexBuffer()};
+  m_commandBuffers[i]->bindVertexBuffers(0, 1, shatterVBuffer.data(), offsets);
+  m_commandBuffers[i]->beginRenderPass(
+      renderPassBeginInfo, vk::SubpassContents::eInline);
+  m_commandBuffers[i]->bindPipeline(
+      vk::PipelineBindPoint::eGraphics, shatter.pipeline());
+  const auto& defaultDS = shatter.m_descriptorSet.descriptorSets();
+  auto deviceAlignment = m_device.m_physicalDevice.getProperties()
+                             .limits.minUniformBufferOffsetAlignment;
+  auto dynamicAlignment = sizeof(glm::mat4);
+  if (deviceAlignment > 0) {
+    dynamicAlignment =
+        (dynamicAlignment + deviceAlignment - 1) & ~(deviceAlignment - 1);
+  }
+  for (int v = 0; v < shatter.triangles().size(); v++) {
+    // std::uint32_t dynamicOffset = v * deviceAlignment;
+    std::uint32_t dynamicOffset = v * dynamicAlignment;
+    m_commandBuffers[i]->bindDescriptorSets(vk::PipelineBindPoint::eGraphics,
+        shatter.pipelineLayout(), 0,
+        static_cast<std::uint32_t>(defaultDS.size()), defaultDS.data(), 1,
+        &dynamicOffset);
+    // m_commandBuffers[i]->draw(
+    //  shatter.triangles().size() * 3, shatter.triangles().size(), 0, 0);
+    m_commandBuffers[i]->draw(3, 1, v + 100, 0);
+  }
 
   ui->draw(m_swapchain.extent().width, m_swapchain.extent().height,
       *m_commandBuffers[i]);
@@ -343,8 +360,8 @@ void Application::createPipeline()
       vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment;
   pushConstantRange.size = sizeof(DanganPushConstants);
 
-  offscreenPipelineLayout = PipelineLayout{m_device, m_swapchain,
-      offscreenDescriptorSets.layout(), pushConstantRange};
+  offscreenPipelineLayout = PipelineLayout{
+      m_device, offscreenDescriptorSets.layout(), pushConstantRange};
   offscreenPipeline =
       Pipeline{m_device, m_swapchain.extent(), m_device.m_msaaSamples};
   offscreenPipeline.addVertexDescription<Vertex>();
@@ -356,7 +373,7 @@ void Application::createPipeline()
   Shader fragShader{
       m_device, "../assets/fullscreen.frag.spv", Shader::ShaderType::FRAGMENT};
   m_graphicsPipelineLayout =
-      PipelineLayout{m_device, m_swapchain, m_DescriptorSet.front().layout()};
+      PipelineLayout{m_device, m_DescriptorSet.front().layout()};
   m_graphicsPipeline =
       Pipeline{m_device, m_swapchain.extent(), vk::SampleCountFlagBits::e1};
   m_graphicsPipeline.changeRasterizationFullscreenTriangle();
@@ -514,9 +531,6 @@ void Application::run()
 
   createUniformBuffers();
 
-  ScreenShatter shatter{m_device};
-  shatter.triangles();
-
   std::vector<std::string> names{"mc", "keebo", "hair", "rantaro", "mc",
       "keebo", "hair", "rantaro", "mc", "keebo", "hair", "rantaro", "mc",
       "keebo", "hair", "rantaro"};
@@ -524,9 +538,9 @@ void Application::run()
   std::uniform_int_distribution<int> dist(0, names.size());
   std::vector<Texture> textures;
   textures.reserve(names.size());
-  for (unsigned int i = 0; i < names.size(); ++i) {
+  for (const auto& name : names) {
     textures.emplace_back(
-        m_device, std::string{"../assets/dangan/"} + names[i] + ".png");
+        m_device, std::string{"../assets/dangan/"} + name + ".png");
   }
 
   std::vector<Model> models;
@@ -601,19 +615,22 @@ void Application::run()
   createPipeline();
   createFramebuffers();
 
-  std::vector<Application::IndexInfo> vBuffers;
+  ScreenShatter shatter{m_device, offscreenRenderPass->attachments().back()};
+  shatter.attachFramebuffer(m_device, m_swapchain);
+
+  std::vector<Application::IndexInfo> indexInfos;
   /*vBuffers.push_back(
       {m_model.vertexBuffer(), m_model.indexBuffer(), m_model.numIndices()});
   vBuffers.push_back(
       {m_model.vertexBuffer(), m_model.indexBuffer(), m_model.numIndices()});*/
   for (const auto& model : models) {
     for (const auto& mesh : model.meshes()) {
-      vBuffers.push_back(
+      indexInfos.push_back(
           {mesh.vertexBuffer(), mesh.indexBuffer(), mesh.numIndices()});
     }
   }
   for (const auto& mesh : trialGround.meshes()) {
-    vBuffers.push_back(
+    indexInfos.push_back(
         {mesh.vertexBuffer(), mesh.indexBuffer(), mesh.numIndices()});
   }
 
@@ -685,9 +702,9 @@ void Application::run()
         20.0f);
     proj[1][1] *= -1;
 
-    for (unsigned int i = 0; i < vBuffers.size(); ++i) {
-      vBuffers[i].pushConstants.model = mvps[i];
-      vBuffers[i].pushConstants.charIdx = i;
+    for (unsigned int i = 0; i < indexInfos.size(); ++i) {
+      indexInfos[i].pushConstants.model = mvps[i];
+      indexInfos[i].pushConstants.charIdx = i;
     }
     // vBuffers[0].pushConstants.model = model;
     // vBuffers[1].pushConstants.model = light.transform();
@@ -700,6 +717,8 @@ void Application::run()
         light.light.color.r, light.light.color.g, light.light.color.b, 1.0f);
     auto imageIdx = getImageIdx();
     updateUniformBuffer(imageIdx);
+
+    shatter.update();
 
     ImGuiIO& io = ImGui::GetIO();
     io.DisplaySize = ImVec2((float) m_swapchain.extent().width,
@@ -727,7 +746,7 @@ void Application::run()
     ImGui::Render();
 
     ui->update();
-    setupCommandBuffers(vBuffers, currentFrame);
+    setupCommandBuffers(indexInfos, currentFrame, shatter);
 
     drawFrame(imageIdx);
 

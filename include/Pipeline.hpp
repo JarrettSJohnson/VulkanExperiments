@@ -7,7 +7,6 @@
 #include "Device.hpp"
 #include "PushConstants.hpp"
 #include "Shader.hpp"
-#include "Swapchain.hpp"
 #include "UBO.hpp"
 #include "VKUtil.hpp"
 
@@ -15,7 +14,7 @@ class PipelineLayout
 {
 public:
   PipelineLayout() = default;
-  PipelineLayout(Device& device, Swapchain& swapchain,
+  PipelineLayout(Device& device,
       std::optional<vk::DescriptorSetLayout> oDescSetLayout = std::nullopt,
       std::optional<vk::PushConstantRange> oPushConstantRange = std::nullopt)
   {

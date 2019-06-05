@@ -14,29 +14,20 @@ public:
   using type = UBOType;
   constexpr static auto type_size() { return sizeof(type); }
   UBO(Device& device, vk::ShaderStageFlags shaderStage)
-      : m_device{device}, m_shaderStage{shaderStage}
+      : m_shaderStage{shaderStage}, m_buffer{device}
   {
-    std::tie(m_buffer, m_memory) = VKUtil::createBuffer(device, sizeof(type),
-        vk::BufferUsageFlagBits::eUniformBuffer,
+    m_buffer.generate(vk::BufferUsageFlagBits::eUniformBuffer,
         vk::MemoryPropertyFlagBits::eHostVisible |
-            vk::MemoryPropertyFlagBits::eHostCoherent);
+            vk::MemoryPropertyFlagBits::eHostCoherent,
+        type_size());
   };
 
   UBOType m_ubo;
-  vk::Device m_device;
-  vk::UniqueBuffer m_buffer;
-  vk::UniqueDeviceMemory m_memory;
+  Buffer m_buffer;
   vk::ShaderStageFlags m_shaderStage;
-  void* mappedMem{};
   UBOType& get() { return m_ubo; }
-  void map() { mappedMem = m_device.mapMemory(*m_memory, 0, sizeof(type)); };
-  void unmap()
-  {
-    if (mappedMem) {
-      m_device.unmapMemory(*m_memory);
-    }
-    mappedMem = nullptr;
-  }
-  void copyData() { std::memcpy(mappedMem, &m_ubo, sizeof(type)); };
-  vk::Buffer buffer() const { return *m_buffer; }
+  void map() { m_buffer.map(); }
+  void unmap() { m_buffer.unmap(); }
+  void copyData() { m_buffer.copyData(&m_ubo, type_size()); }
+  vk::Buffer buffer() const { return *m_buffer.m_buffer; }
 };

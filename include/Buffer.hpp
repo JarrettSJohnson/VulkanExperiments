@@ -52,4 +52,6 @@ struct Buffer {
     mappedRange.size = VK_WHOLE_SIZE;
     m_device->device().flushMappedMemoryRanges(1, &mappedRange);
   }
+  vk::Buffer buffer() const { return *m_buffer; }
+  vk::DeviceSize size() const { return m_size; }
 };

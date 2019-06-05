@@ -11,8 +11,8 @@ class Shader
 public:
   enum class ShaderType { VERTEX, FRAGMENT };
 
-  Shader(
-      Device& device, const std::filesystem::path& filename, ShaderType sType)
+  Shader(const Device& device, const std::filesystem::path& filename,
+      ShaderType sType)
       : m_sType{sType}
   {
     auto data = VKUtil::getFileData(filename);

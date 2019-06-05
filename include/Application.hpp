@@ -16,6 +16,7 @@
 #include "Pipeline.hpp"
 #include "PushConstants.hpp"
 #include "RenderPass.hpp"
+#include "ScreenShatter.hpp"
 #include "Swapchain.hpp"
 #include "Texture.hpp"
 #include "UBO.hpp"
@@ -104,11 +105,11 @@ public:
   const bool enableValidationLayers = true;
 #endif
 
-  //Model m_model;
+  // Model m_model;
 
   std::uint32_t m_mipLevels{};
 
-  //Texture m_texture{};
+  // Texture m_texture{};
 
   DescriptorSet offscreenDescriptorSets{};
   // TODO: generate takes a size for blah blah swapchain
@@ -202,15 +203,22 @@ public:
   void createDescriptorSets();
   // void createCommandBuffers();
   std::unique_ptr<UBO<LightUniforms>> m_UBO;
+
+  // TODO: COLLAPSE THE FOLLOWING TO--BAD STRATEGY
   struct IndexInfo {
     vk::Buffer vBuffer{};
     vk::Buffer iBuffer{};
     std::uint32_t numIndices{};
     DanganPushConstants pushConstants{};
   };
+
+  struct PostProcessingIndexInfo {
+    vk::Buffer vBuffer{};
+  };
+
   void allocateCommandBuffers();
-  void setupCommandBuffers(
-      const std::vector<IndexInfo>& buffers, std::size_t currentFrame);
+  void setupCommandBuffers(const std::vector<IndexInfo>& buffers,
+      std::size_t currentFrame, const ScreenShatter&);
   void createSyncs();
   std::uint32_t getImageIdx();
   void drawFrame(std::uint32_t imageIdx);

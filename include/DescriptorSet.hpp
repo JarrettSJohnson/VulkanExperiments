@@ -46,6 +46,18 @@ public:
     item.size = ubo.type_size();
   }
 
+  void addDynamicUBO(const Buffer& dynamicUBO, vk::ShaderStageFlags shaderStage)
+  {
+    auto& item = m_uniformDynamicBindings.emplace_back();
+    item.idx = m_idx++;
+    item.binding.binding = item.idx;
+    item.binding.descriptorType = vk::DescriptorType::eUniformBufferDynamic;
+    item.binding.descriptorCount = 1;
+    item.binding.stageFlags = shaderStage;
+    item.buffer = dynamicUBO.buffer();
+    item.size = dynamicUBO.size();
+  }
+
   void addSampler(const vk::ImageView view, const vk::Sampler sampler)
   {
     auto& item = m_samplerBindings.emplace_back();
@@ -74,18 +86,22 @@ public:
   {
     addSampler(texture.view(), texture.sampler());
   }
-  void addTextureArray(const std::vector<Texture>& textures) {
+  void addTextureArray(const std::vector<Texture>& textures)
+  {
     std::vector<std::pair<vk::ImageView, vk::Sampler>> combinedSamplers;
     for (const auto& texture : textures) {
       combinedSamplers.emplace_back(texture.view(), texture.sampler());
-	}
+    }
     addSamplerArray(combinedSamplers);
   }
   void generateLayout(const Device& device)
   {
-    m_layout.resize(m_uniformBindings.size() + m_samplerBindings.size() +
-                    m_samplerArrayBindings.size());
+    m_layout.resize(m_uniformBindings.size() + m_uniformDynamicBindings.size() +
+                    m_samplerBindings.size() + m_samplerArrayBindings.size());
     for (const auto& binding : m_uniformBindings) {
+      m_layout[binding.idx] = binding.binding;
+    }
+    for (const auto& binding : m_uniformDynamicBindings) {
       m_layout[binding.idx] = binding.binding;
     }
     for (const auto& binding : m_samplerBindings) {
@@ -152,6 +168,27 @@ public:
         device.device().updateDescriptorSets(1, &descriptorWrite, 0, nullptr);
       }
     }
+    for (const auto& ubo : m_uniformDynamicBindings) {
+      for (std::size_t i{0u}; i < m_descriptorSets.size(); ++i) {
+        vk::DescriptorBufferInfo bufferInfo{};
+        bufferInfo.buffer = ubo.buffer;
+        bufferInfo.offset = 0;
+        // bufferInfo.range = ubo.size;
+        bufferInfo.range = 256;
+
+        vk::WriteDescriptorSet descriptorWrite{};
+
+        descriptorWrite.dstSet = m_descriptorSets[i];
+        descriptorWrite.dstBinding = ubo.binding.binding;
+        descriptorWrite.dstArrayElement = 0;
+        descriptorWrite.descriptorType =
+            vk::DescriptorType::eUniformBufferDynamic;
+        descriptorWrite.descriptorCount = 1;
+        descriptorWrite.pBufferInfo = &bufferInfo;
+
+        device.device().updateDescriptorSets(1, &descriptorWrite, 0, nullptr);
+      }
+    }
     for (const auto& sampler : m_samplerBindings) {
       for (std::size_t i{0u}; i < m_descriptorSets.size(); ++i) {
         vk::DescriptorImageInfo imageInfo{};
@@ -172,8 +209,8 @@ public:
         device.device().updateDescriptorSets(1, &descriptorWrite, 0, nullptr);
       }
     }
-    //for (const auto& sampler : m_samplerArrayBindings) {
-    for (std::size_t s{0u}; s < m_samplerArrayBindings.size(); ++s){
+    // for (const auto& sampler : m_samplerArrayBindings) {
+    for (std::size_t s{0u}; s < m_samplerArrayBindings.size(); ++s) {
       const auto& sampler = m_samplerArrayBindings[s];
       for (std::size_t i{0u}; i < m_descriptorSets.size(); ++i) {
         std::vector<vk::DescriptorImageInfo> imageInfos;
@@ -214,6 +251,7 @@ private:
   vk::UniqueDescriptorPool m_descriptorPool{};
   std::vector<vk::DescriptorSet> m_descriptorSets{};
   std::vector<UBODescriptorItem> m_uniformBindings;
+  std::vector<UBODescriptorItem> m_uniformDynamicBindings;
   std::vector<SamplerDescriptorItem> m_samplerBindings;
   std::vector<SamplerArrayDescriptorItem> m_samplerArrayBindings;
   std::vector<vk::DescriptorSetLayoutBinding> m_layout;
