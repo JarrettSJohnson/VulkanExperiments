@@ -11,7 +11,7 @@ public:
   {
     m_points = generateRandom2DPoints(numPts);
   }
-  const auto& points() const { return m_points; }
+  auto& points() { return m_points; }
 
 private:
   std::vector<glm::vec3> m_points;
@@ -21,12 +21,15 @@ private:
     std::vector<glm::vec3> points;
     points.reserve(numPts);
     std::mt19937 mt{std::random_device{}()};
-    std::uniform_real_distribution<float> dist{-1.0, 1.0f};
-
-    for (std::size_t i{0u}; i < numPts; ++i) {
-      points.emplace_back(dist(mt), dist(mt), dist(mt));
+    std::uniform_real_distribution<float> dist{-1.0f, 1.0f};
+    auto wide_tri = numPts / 3u;
+    for (std::size_t i{0u}; i < wide_tri; ++i) {
+      points.emplace_back(dist(mt), dist(mt), 0.0f);
     }
-
+    std::uniform_real_distribution<float> dist2{-0.2f, 0.2f};
+    for (std::size_t i{0u}; i < numPts - wide_tri; ++i) {
+      points.emplace_back(dist2(mt), dist2(mt), 0.0f);
+    }
     return points;
   }
 };

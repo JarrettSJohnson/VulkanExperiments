@@ -105,6 +105,7 @@ public:
 
       attachment.description.samples = vk::SampleCountFlagBits::e1;
       attachment.description.loadOp = vk::AttachmentLoadOp::eDontCare;
+      attachment.description.loadOp = vk::AttachmentLoadOp::eClear;
       attachment.description.storeOp = vk::AttachmentStoreOp::eStore;
 
       attachment.description.initialLayout = vk::ImageLayout::eUndefined;

@@ -268,6 +268,11 @@ void Application::setupCommandBuffers(const std::vector<IndexInfo>& buffers,
   m_commandBuffers[i]->setScissor(0, 1, &scissor);
   m_commandBuffers[i]->draw(3, 1, 0, 0);*/
 
+  clearValues[0].color = std::array{0.0f, 0.0f, 0.0f, 1.0f};
+  clearValues[1].depthStencil = {{1.0f, 0}};
+  renderPassBeginInfo.clearValueCount =
+      static_cast<std::uint32_t>(clearValues.size());
+  renderPassBeginInfo.pClearValues = clearValues.data();
   renderPassBeginInfo.renderPass = shatter.renderpass();
   renderPassBeginInfo.framebuffer = shatter.framebuffer()[i].framebuffer();
   std::array<vk::Buffer, 1> shatterVBuffer{shatter.vertexBuffer()};
@@ -284,16 +289,18 @@ void Application::setupCommandBuffers(const std::vector<IndexInfo>& buffers,
     dynamicAlignment =
         (dynamicAlignment + deviceAlignment - 1) & ~(deviceAlignment - 1);
   }
+
   for (int v = 0; v < shatter.triangles().size(); v++) {
-    // std::uint32_t dynamicOffset = v * deviceAlignment;
-    std::uint32_t dynamicOffset = v * dynamicAlignment;
+    std::uint32_t dynamicOffset = v * deviceAlignment;
+    // std::uint32_t dynamicOffset = v * dynamicAlignment;
     m_commandBuffers[i]->bindDescriptorSets(vk::PipelineBindPoint::eGraphics,
         shatter.pipelineLayout(), 0,
         static_cast<std::uint32_t>(defaultDS.size()), defaultDS.data(), 1,
         &dynamicOffset);
     // m_commandBuffers[i]->draw(
     //  shatter.triangles().size() * 3, shatter.triangles().size(), 0, 0);
-    m_commandBuffers[i]->draw(3, 1, v + 100, 0);
+    m_commandBuffers[i]->draw(3, 1, v * 3, 0);
+    // m_commandBuffers[i]->draw(0, 1, v, 0);
   }
 
   ui->draw(m_swapchain.extent().width, m_swapchain.extent().height,
@@ -691,8 +698,10 @@ void Application::run()
     auto currentTime = std::chrono::high_resolution_clock::now();
     float dt = std::chrono::duration_cast<std::chrono::milliseconds>(frame_time)
                    .count();
-    if (animSys.animate(dt))
-      updateCameraTransform(cameraTransformData, camera);
+
+    // ANIMATION SYSTEM
+    // if (animSys.animate(dt))
+    //  updateCameraTransform(cameraTransformData, camera);
 
     auto model = glm::mat4(1.0f);
     auto view = camera.view();
@@ -718,34 +727,35 @@ void Application::run()
     auto imageIdx = getImageIdx();
     updateUniformBuffer(imageIdx);
 
-    shatter.update();
+    // SHATTER UPDATE
+    shatter.update(dt);
 
-    ImGuiIO& io = ImGui::GetIO();
-    io.DisplaySize = ImVec2((float) m_swapchain.extent().width,
-        (float) m_swapchain.extent().height);
-    ImGui::NewFrame();
-    // ui.update();
-    // ui.draw(*m_commandBuffers[imageIdx]);
-    auto guiWidth = 300;
-    auto guiHeight = 100;
-    auto [width, height] = m_swapchain.extent();
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0);
-    ImGui::SetNextWindowPos(ImVec2(10, height - guiHeight - 10));
-    ImGui::SetNextWindowSize(
-        ImVec2(guiWidth, guiHeight), ImGuiSetCond_FirstUseEver);
-    ImGui::Begin("Vulkan Example", nullptr);
-    // ImGui::TextUnformatted(printVec3(camera.position()).c_str());
-    // ImGui::TextUnformatted(printVec3(camera.dir()).c_str());
+    /*  ImGuiIO& io = ImGui::GetIO();
+      io.DisplaySize = ImVec2((float) m_swapchain.extent().width,
+          (float) m_swapchain.extent().height);
+      ImGui::NewFrame();
+      // ui.update();
+      // ui.draw(*m_commandBuffers[imageIdx]);
+      auto guiWidth = 300;
+      auto guiHeight = 100;
+      auto [width, height] = m_swapchain.extent();
+      /* ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0);
+       ImGui::SetNextWindowPos(ImVec2(10, height - guiHeight - 10));
+       ImGui::SetNextWindowSize(
+           ImVec2(guiWidth, guiHeight), ImGuiSetCond_FirstUseEver);
+       ImGui::Begin("Vulkan Example", nullptr);
+       // ImGui::TextUnformatted(printVec3(camera.position()).c_str());
+       // ImGui::TextUnformatted(printVec3(camera.dir()).c_str());
 
-    ImGui::PushItemWidth(110.0f * 1.0f);
-    // OnUpdateUIOverlay(&UIOverlay);
-    ImGui::PopItemWidth();
+       ImGui::PushItemWidth(110.0f * 1.0f);
+       // OnUpdateUIOverlay(&UIOverlay);
+       ImGui::PopItemWidth();
 
-    ImGui::End();
-    ImGui::PopStyleVar();
-    ImGui::Render();
+       ImGui::End();
+       ImGui::PopStyleVar();
+       ImGui::Render();*/
 
-    ui->update();
+    // ui->update();
     setupCommandBuffers(indexInfos, currentFrame, shatter);
 
     drawFrame(imageIdx);

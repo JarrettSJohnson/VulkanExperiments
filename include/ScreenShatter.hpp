@@ -11,10 +11,11 @@ class ScreenShatter : public PostProcess
 {
   // Use for transforms
   struct ShatterTriangle {
-    glm::vec2 traj;
-    float rotX;
-    float rotY;
-    float rotZ;
+    glm::vec3 traj;
+    glm::vec3 center;
+    glm::vec3 vel;
+    glm::vec3 rot;
+    glm::vec3 rotVel;
     float scaleFactor;
   };
   struct ShatterTriangleTransform alignas(256) {
@@ -27,7 +28,7 @@ class ScreenShatter : public PostProcess
     {
       std::vector<vk::VertexInputBindingDescription> bindingDescriptions(1);
       bindingDescriptions[0].binding = 0;
-      bindingDescriptions[0].stride = sizeof(ShatterTriangle);
+      bindingDescriptions[0].stride = sizeof(ShatterTriangleVertex);
       bindingDescriptions[0].inputRate = vk::VertexInputRate::eVertex;
       return bindingDescriptions;
     }
@@ -46,8 +47,16 @@ public:
   ScreenShatter(Device& device, const FramebufferAttachment& prevAttachment)
       : PostProcess{device, prevAttachment}, dynamic_ubo{device}
   {
-    RandomCoordGenerator randPts{120};
-    const auto& pts = randPts.points();
+    // START WITH 0% VEL AND WORK WAY UP TO 100% VEL IN A FEW FRAMES
+    // ADD TIME TO PUSH CONSTANT --- TIME % 2000MS / 2000MS is the % of white to
+    // show
+
+    RandomCoordGenerator randPts{256};
+    auto& pts = randPts.points();
+    pts.emplace_back(-1.0f, -1.0f, 0.0f);
+    pts.emplace_back(-1.0f, 1.0f, 0.0f);
+    pts.emplace_back(1.0f, -1.0f, 0.0f);
+    pts.emplace_back(1.0f, 1.0f, 0.0f);
     std::vector<double> delPts;
     for (const auto& pt : pts) {
       delPts.emplace_back(static_cast<double>(pt.x));
@@ -55,11 +64,12 @@ public:
     }
     delaunator::Delaunator d{delPts};
     std::vector<ShatterTriangleVertex> verts;
-    verts.reserve(d.triangles.size());
+    verts.reserve(d.triangles.size() * 3);
     m_tris.reserve(d.triangles.size());
-    const glm::vec2 quadCenter(0.5f, 0.5f);
+    const glm::vec3 quadCenter(0.0f, 0.0f, 0.0f);
     std::mt19937 mt{std::random_device{}()};
-    std::uniform_real_distribution<float> dist{-0.5, 0.5};
+    std::uniform_real_distribution<float> dist{-20, 20};
+    std::uniform_real_distribution<float> pct{0.5f, 1.0f};
 
     for (std::size_t i = 0; i < d.triangles.size(); i += 3) {
       auto& tri = m_tris.emplace_back();
@@ -73,47 +83,49 @@ public:
               d.coords[2 * d.triangles[i + 2] + 1]}});
       float centerX = (v1.pos.x + v2.pos.x + v3.pos.x) / 3.0f;
       float centerY = (v1.pos.y + v2.pos.y + v3.pos.y) / 3.0f;
-      glm::vec2 center(centerX, centerY);
-      tri.traj = center - quadCenter;
-      tri.rotX = dist(mt);
-      tri.rotY = dist(mt);
-      tri.rotZ = dist(mt);
+      tri.center = glm::vec3(centerX, centerY, 0.0f);
+      auto distFromCenter = tri.center - quadCenter;
+      auto dir = distFromCenter / glm::length(distFromCenter);
+      auto spd = 1.0f / glm::length(distFromCenter);
+      tri.vel = dir * spd * 0.2f * pct(mt);
+      tri.vel.z = 0;
+      auto scale = 0.005;
+      tri.rotVel =
+          glm::vec3(dist(mt) * scale, dist(mt) * scale, dist(mt) * scale) * spd;
       tri.scaleFactor = dist(mt); // random for now--scale by center
     }
 
-    // Redundant--3 verts in triangle should share the same transform. Change
-    // later
-    transforms.resize(verts.size());
-    /*const auto transformDataSize =
-        sizeof(ShatterTriangleTransform) * verts.size();*/
+    transforms.resize(m_tris.size());
     auto deviceAlignment = device.m_physicalDevice.getProperties()
                                .limits.minUniformBufferOffsetAlignment;
     std::size_t uniformSize = sizeof(ShatterTriangleTransform);
     auto dynamicAlignment =
         (uniformSize / deviceAlignment) * deviceAlignment +
         ((uniformSize % deviceAlignment) > 0 ? deviceAlignment : 0);
+    auto dynamicUboSize = dynamicAlignment * m_tris.size();
     dynamic_ubo.generate(vk::BufferUsageFlagBits::eUniformBuffer,
         vk::MemoryPropertyFlagBits::eHostVisible |
             vk::MemoryPropertyFlagBits::eHostCoherent,
-        dynamicAlignment * verts.size());
+        dynamicAlignment * m_tris.size());
 
-    vk::DeviceSize bufferSize = sizeof(ShatterTriangleVertex) * verts.size();
+    vk::DeviceSize vertexbufferSize =
+        sizeof(ShatterTriangleVertex) * verts.size();
 
     Buffer stagingBuffer{device};
     stagingBuffer.generate(vk::BufferUsageFlagBits::eTransferSrc,
         vk::MemoryPropertyFlagBits::eHostVisible |
             vk::MemoryPropertyFlagBits::eHostCoherent,
-        bufferSize);
+        vertexbufferSize);
 
-    stagingBuffer.mapCopy(verts.data(), bufferSize);
+    stagingBuffer.mapCopy(verts.data(), vertexbufferSize);
 
     m_vertexBuffer = Buffer{device};
     m_vertexBuffer.generate(vk::BufferUsageFlagBits::eTransferDst |
                                 vk::BufferUsageFlagBits::eVertexBuffer,
-        vk::MemoryPropertyFlagBits::eDeviceLocal, bufferSize);
+        vk::MemoryPropertyFlagBits::eDeviceLocal, vertexbufferSize);
 
-    VKUtil::copyBuffer(
-        device, *stagingBuffer.m_buffer, *m_vertexBuffer.m_buffer, bufferSize);
+    VKUtil::copyBuffer(device, *stagingBuffer.m_buffer,
+        *m_vertexBuffer.m_buffer, vertexbufferSize);
 
     m_sampler = VKUtil::createTextureSampler(device, 1);
     m_descriptorSet.addDynamicUBO(
@@ -152,20 +164,35 @@ public:
     }
   }
 
-  void update()
+  void update(float dt)
   {
-    /**
-     * TESTING
-     */
-    for (auto& transform : transforms) {
-      // transform.mat =
-      //    glm::translate(transform.mat, glm::vec3(0.01f, 0.01f, 0.0f));
+    currDuration += dt;
+    for (unsigned int i = 0;
+         i < m_tris.size() && currDuration >= transformDelay; ++i) {
+      auto& transform = transforms[i];
+      auto& tri = m_tris[i];
+      tri.traj += tri.vel * 0.01f;
+      tri.rot += tri.rotVel * 4.0f;
+      transform.mat = glm::mat4(1.0f);
+
+      glm::mat4 translate = glm::translate(glm::mat4(1.0f), -tri.center);
+      glm::quat qPitch =
+          glm::angleAxis(glm::radians(tri.rot.x), glm::vec3(1.0f, 0.0f, 0.0f));
+      glm::quat qYaw =
+          glm::angleAxis(glm::radians(tri.rot.y), glm::vec3(0.0f, 1.0f, 0.0f));
+      glm::quat qRoll =
+          glm::angleAxis(glm::radians(tri.rot.z), glm::vec3(0.0f, 0.0f, 1.0f));
+
+      glm::quat orientation = glm::normalize(qRoll * qPitch * qYaw);
+      glm::mat4 rotate = glm::mat4_cast(orientation);
+      auto translate2 = glm::translate(glm::mat4(1.0f), tri.center);
+      auto translate3 = glm::translate(glm::mat4(1.0f), tri.traj);
+      transform.mat = translate3 * translate2 * rotate * translate;
     }
-    // dynamic_ubo.mapCopy(transforms.data(),
-    //    sizeof(ShatterTriangleTransform) * transforms.size());
     dynamic_ubo.copyData(transforms.data(),
         sizeof(ShatterTriangleTransform) * transforms.size());
   }
+
   ~ScreenShatter() { dynamic_ubo.unmap(); }
 
 private:
@@ -173,9 +200,8 @@ private:
   float totalDuration{2000};
   float currDuration{};
   std::vector<ShatterTriangle> m_tris;
-  // std::vector<UBO<ShatterTriangleTransform>> dynamic_ubo;
   std::vector<ShatterTriangleTransform> transforms;
-  Buffer dynamic_ubo; // big pool of data
+  Buffer dynamic_ubo;
   // uniform velocity
   float m_velocity{};
 };

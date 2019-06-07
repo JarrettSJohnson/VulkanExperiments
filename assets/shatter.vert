@@ -11,8 +11,7 @@ layout (binding = 0) uniform PER_VERT
 
 void main()
 {
-    //outUV = position; //FIX THIS [-1, -1] to [0, 1]
-    outUV.x = (position.x - -1) / (1 - -1) * (1 - 0) + 0;
-    outUV.y = (position.y - -1) / (1 - -1) * (1 - 0) + 0;
-	gl_Position = vtTx.model * vec4(position, 0.0, 1.0);
+    outUV.x = ((position.x - -1) / (1 - -1)) * (1 - 0) + 0;
+    outUV.y = ((position.y - -1) / (1 - -1)) * (1 - 0) + 0;
+    gl_Position = vtTx.model * vec4(position, 0.0, 1.0);
 }

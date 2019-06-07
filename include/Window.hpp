@@ -9,7 +9,6 @@
 
 #include "Animation.hpp"
 
-
 inline TransformComponents transformFromCamera(const Camera& cam)
 {
   TransformComponents comps{};
@@ -87,17 +86,17 @@ public:
       camera.translate(cameraSpeed * camera.up());
     if (glfwGetKey(m_window, GLFW_KEY_T) == GLFW_PRESS)
       camera.translate(-cameraSpeed * camera.up());
-   // if (glfwGetKey(m_window, GLFW_KEY_Q) == GLFW_PRESS)
-   //   camera.roll(5);
-   // if (glfwGetKey(m_window, GLFW_KEY_E) == GLFW_PRESS)
-   //   camera.roll(-5);
+    // if (glfwGetKey(m_window, GLFW_KEY_Q) == GLFW_PRESS)
+    //   camera.roll(5);
+    // if (glfwGetKey(m_window, GLFW_KEY_E) == GLFW_PRESS)
+    //   camera.roll(-5);
     if (glfwGetKey(m_window, GLFW_KEY_A) == GLFW_PRESS)
       camera.translate(
           -glm::normalize(glm::cross(camera.dir(), camera.up())) * cameraSpeed);
     if (glfwGetKey(m_window, GLFW_KEY_D) == GLFW_PRESS)
       camera.translate(
           glm::normalize(glm::cross(camera.dir(), camera.up())) * cameraSpeed);
-    //if (glfwGetKey(m_window, GLFW_KEY_SPACE) == GLFW_PRESS)
+    // if (glfwGetKey(m_window, GLFW_KEY_SPACE) == GLFW_PRESS)
     //  std::cout << printVec3(camera.position()) << std::endl;
     if (glfwGetKey(m_window, GLFW_KEY_SPACE) == GLFW_PRESS)
       std::cout << transformFromCamera(camera).to_string() << std::endl;
@@ -136,7 +135,7 @@ public:
   {
     auto ret = offset;
     offset = std::make_pair(0.0f, 0.0f);
-	return ret;
+    return ret;
   }
 
   std::pair<int, int> getSize()
@@ -166,8 +165,8 @@ private:
   bool firstMouse = true;
   std::pair<float, float> offset;
   std::pair<float, float> lastCoord;
-  //float lastX = 800.0f / 2.0;
-  //float lastY = 600.0 / 2.0;
-  //float pitch = 0.0f;
-  //float yaw = -90.0f;
+  // float lastX = 800.0f / 2.0;
+  // float lastY = 600.0 / 2.0;
+  // float pitch = 0.0f;
+  // float yaw = -90.0f;
 };
