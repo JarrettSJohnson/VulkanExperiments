@@ -18,7 +18,7 @@ class ScreenShatter : public PostProcess
     glm::vec3 rotVel;
     float scaleFactor;
   };
-  struct ShatterTriangleTransform alignas(256) {
+  struct ShatterTriangleTransform {
     glm::mat4 mat = glm::mat4(1.0f);
   };
   // Use for shader information
@@ -53,10 +53,6 @@ public:
 
     RandomCoordGenerator randPts{256};
     auto& pts = randPts.points();
-    pts.emplace_back(-1.0f, -1.0f, 0.0f);
-    pts.emplace_back(-1.0f, 1.0f, 0.0f);
-    pts.emplace_back(1.0f, -1.0f, 0.0f);
-    pts.emplace_back(1.0f, 1.0f, 0.0f);
     std::vector<double> delPts;
     for (const auto& pt : pts) {
       delPts.emplace_back(static_cast<double>(pt.x));
@@ -73,8 +69,8 @@ public:
 
     for (std::size_t i = 0; i < d.triangles.size(); i += 3) {
       auto& tri = m_tris.emplace_back();
-      auto& v1 = verts.emplace_back(ShatterTriangleVertex{
-          {d.coords[2 * d.triangles[i]], d.coords[2 * d.triangles[i] + 1]}});
+      auto& v1 = verts.emplace_back(ShatterTriangleVertex{{d.coords[2 * d.triangles[i]],
+              d.coords[2 * d.triangles[i] + 1]}});
       auto& v2 = verts.emplace_back(
           ShatterTriangleVertex{{d.coords[2 * d.triangles[i + 1]],
               d.coords[2 * d.triangles[i + 1] + 1]}});
@@ -89,7 +85,7 @@ public:
       auto spd = 1.0f / glm::length(distFromCenter);
       tri.vel = dir * spd * 0.2f * pct(mt);
       tri.vel.z = 0;
-      auto scale = 0.005;
+      auto scale = 0.01;
       tri.rotVel =
           glm::vec3(dist(mt) * scale, dist(mt) * scale, dist(mt) * scale) * spd;
       tri.scaleFactor = dist(mt); // random for now--scale by center
@@ -106,7 +102,7 @@ public:
     dynamic_ubo.generate(vk::BufferUsageFlagBits::eUniformBuffer,
         vk::MemoryPropertyFlagBits::eHostVisible |
             vk::MemoryPropertyFlagBits::eHostCoherent,
-        dynamicAlignment * m_tris.size());
+        dynamicUboSize);
 
     vk::DeviceSize vertexbufferSize =
         sizeof(ShatterTriangleVertex) * verts.size();
@@ -155,6 +151,7 @@ public:
 
   void attachFramebuffer(Device& device, const Swapchain& tempSwapchain)
   {
+    m_framebuffers.clear();
     m_framebuffers.emplace_back(device, m_renderPass);
     m_framebuffers.emplace_back(device, m_renderPass);
 
@@ -166,15 +163,29 @@ public:
 
   void update(float dt)
   {
+    //auto proj = glm::perspective(glm::radians(20.0f), 1024 / (float) 576, 0.1f,
+    //    20.0f);
+    auto proj = glm::perspective(glm::radians(30.0f), 1.0f, 0.1f,
+        20.0f);
+    proj[1][1] *= 1;
+    auto view = glm::lookAt(glm::vec3(0.0f, 0.0f, 3.0f),
+        glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+   // proj = view = glm::mat4(1.0f);
     currDuration += dt;
     for (unsigned int i = 0;
-         i < m_tris.size() && currDuration >= transformDelay; ++i) {
+         i < m_tris.size() && currDuration >= shatterDelay; ++i) {
       auto& transform = transforms[i];
       auto& tri = m_tris[i];
+
+	  if (currDuration > shatterDelay + pushZDelay) {
+        tri.vel.z += 0.2;
+      }
+     // tri.traj.z += tri.vel.z * 0.01f;
       tri.traj += tri.vel * 0.01f;
+     // tri.traj.z += 0.005;
       tri.rot += tri.rotVel * 4.0f;
       transform.mat = glm::mat4(1.0f);
-
+      continue;
       glm::mat4 translate = glm::translate(glm::mat4(1.0f), -tri.center);
       glm::quat qPitch =
           glm::angleAxis(glm::radians(tri.rot.x), glm::vec3(1.0f, 0.0f, 0.0f));
@@ -187,7 +198,7 @@ public:
       glm::mat4 rotate = glm::mat4_cast(orientation);
       auto translate2 = glm::translate(glm::mat4(1.0f), tri.center);
       auto translate3 = glm::translate(glm::mat4(1.0f), tri.traj);
-      transform.mat = translate3 * translate2 * rotate * translate;
+      transform.mat = proj * view * translate3 * translate2 * rotate * translate;
     }
     dynamic_ubo.copyData(transforms.data(),
         sizeof(ShatterTriangleTransform) * transforms.size());
@@ -196,8 +207,8 @@ public:
   ~ScreenShatter() { dynamic_ubo.unmap(); }
 
 private:
-  float transformDelay{100};
-  float totalDuration{2000};
+  float shatterDelay{1000};
+  float pushZDelay{1500};
   float currDuration{};
   std::vector<ShatterTriangle> m_tris;
   std::vector<ShatterTriangleTransform> transforms;

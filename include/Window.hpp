@@ -29,9 +29,12 @@ public:
     glfwInit();
 
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-    glfwWindowHint(GLFW_RESIZABLE, GL_FALSE);
-    m_window = glfwCreateWindow(m_width, m_height, "Vulkan", nullptr, nullptr);
-    glfwSetInputMode(m_window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+    //glfwWindowHint(GLFW_RESIZABLE, GL_FALSE);
+
+    m_window = glfwCreateWindow(m_width * 1.5, m_height * 1.5, "Vulkan",
+        glfwGetPrimaryMonitor(), nullptr);
+    glfwSetWindowPos(m_window, 100, 100);
+    //glfwSetInputMode(m_window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
     glfwSetWindowUserPointer(m_window, this);
     glfwSetCursorPosCallback(
         m_window, [](GLFWwindow* glfwWin, double xpos, double ypos) {

@@ -22,6 +22,10 @@ private:
     points.reserve(numPts);
     std::mt19937 mt{std::random_device{}()};
     std::uniform_real_distribution<float> dist{-1.0f, 1.0f};
+    points.emplace_back(-1.0f, -1.0f, 0.0f);
+    points.emplace_back(-1.0f, 1.0f, 0.0f);
+    points.emplace_back(1.0f, -1.0f, 0.0f);
+    points.emplace_back(1.0f, 1.0f, 0.0f);
     auto wide_tri = numPts / 3u;
     for (std::size_t i{0u}; i < wide_tri; ++i) {
       points.emplace_back(dist(mt), dist(mt), 0.0f);

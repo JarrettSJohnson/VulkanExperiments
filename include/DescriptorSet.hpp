@@ -173,8 +173,7 @@ public:
         vk::DescriptorBufferInfo bufferInfo{};
         bufferInfo.buffer = ubo.buffer;
         bufferInfo.offset = 0;
-        // bufferInfo.range = ubo.size;
-        bufferInfo.range = 256;
+        bufferInfo.range = 64;
 
         vk::WriteDescriptorSet descriptorWrite{};
 

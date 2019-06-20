@@ -65,24 +65,6 @@ std::vector<const char*> Application::getRequiredExtensions()
   return requiredExts;
 }
 
-void Application::recreateSwapchain()
-{
-  int width = 0, height = 0;
-  while (width == 0 || height == 0) {
-    std::tie(width, height) = m_window.getSize();
-    glfwWaitEvents();
-  }
-  m_device.device().waitIdle();
-  m_swapchain = Swapchain{m_device, *m_surface};
-  createRenderPass();
-  createPipeline();
-  createFramebuffers();
-  //////////createCommandBuffers();
-  createUniformBuffers();
-  // createDescriptorPool();
-  // createCommandBuffers();
-}
-
 void Application::selectPhysicalDevice()
 {
   m_device = Device{m_instance->enumeratePhysicalDevices().front()};
@@ -526,6 +508,33 @@ void Application::present(std::uint32_t imageIdx)
   currentFrame = (currentFrame + 1) % framesInFlight;
 }
 
+void Application::recreateSwapchain()
+{
+  int width = 0, height = 0;
+  while (width == 0 || height == 0) {
+    std::tie(width, height) = m_window.getSize();
+    glfwWaitEvents();
+  }
+  m_device.device().waitIdle();
+
+
+  m_framebuffers.clear();
+ // m_commandBuffers.clear();
+ //  m_graphicsPipeline = Pipeline{};
+  //m_graphicsPipelineLayout = PipelineLayout{};
+  m_swapchain = Swapchain{};
+
+
+  m_swapchain = Swapchain(m_device, *m_surface);
+  createRenderPass();
+  createPipeline();
+  createFramebuffers();
+  allocateCommandBuffers();
+  shatter.emplace(m_device, offscreenRenderPass->attachments().back());
+  shatter->attachFramebuffer(m_device, m_swapchain);
+  int x = 4;
+}
+
 void Application::run()
 {
   m_window = Window{1024, 576};
@@ -622,8 +631,9 @@ void Application::run()
   createPipeline();
   createFramebuffers();
 
-  ScreenShatter shatter{m_device, offscreenRenderPass->attachments().back()};
-  shatter.attachFramebuffer(m_device, m_swapchain);
+  //ScreenShatter shatter{m_device, offscreenRenderPass->attachments().back()};
+  shatter.emplace(m_device, offscreenRenderPass->attachments().back());
+  shatter->attachFramebuffer(m_device, m_swapchain);
 
   std::vector<Application::IndexInfo> indexInfos;
   /*vBuffers.push_back(
@@ -700,8 +710,8 @@ void Application::run()
                    .count();
 
     // ANIMATION SYSTEM
-    // if (animSys.animate(dt))
-    //  updateCameraTransform(cameraTransformData, camera);
+    if (animSys.animate(dt))
+      updateCameraTransform(cameraTransformData, camera);
 
     auto model = glm::mat4(1.0f);
     auto view = camera.view();
@@ -728,7 +738,7 @@ void Application::run()
     updateUniformBuffer(imageIdx);
 
     // SHATTER UPDATE
-    shatter.update(dt);
+    shatter->update(dt);
 
     /*  ImGuiIO& io = ImGui::GetIO();
       io.DisplaySize = ImVec2((float) m_swapchain.extent().width,
@@ -756,7 +766,7 @@ void Application::run()
        ImGui::Render();*/
 
     // ui->update();
-    setupCommandBuffers(indexInfos, currentFrame, shatter);
+    setupCommandBuffers(indexInfos, currentFrame, *shatter);
 
     drawFrame(imageIdx);
 

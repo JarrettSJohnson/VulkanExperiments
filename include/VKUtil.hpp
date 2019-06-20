@@ -368,13 +368,13 @@ inline void generateMipmaps(Device& device, vk::Image image, vk::Format format,
   endSingleTimeCommands(commandBuffer, device.m_transferQueue);
 }
 
-template <typename VK_HANDLE_TYPE>
-std::vector<typename VK_HANDLE_TYPE::element_type> uniqueToRaw(
-    const std::vector<VK_HANDLE_TYPE>& handles)
+template <typename UniqueType>
+VULKAN_HPP_INLINE std::vector<typename UniqueType::element_type> uniqueToRaw(
+    std::vector<UniqueType> const& handles)
 {
-  std::vector<typename VK_HANDLE_TYPE::element_type> newBuffer(handles.size());
+  std::vector<UniqueType::element_type> newBuffer(handles.size());
   std::transform(handles.begin(), handles.end(), newBuffer.begin(),
-      [](const auto& handle) { return *handle; });
+      [](auto const& handle) { return handle.get(); });
   return newBuffer;
 }
 

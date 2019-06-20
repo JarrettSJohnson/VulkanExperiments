@@ -117,6 +117,8 @@ public:
 
   std::unique_ptr<UIOverlay> ui;
 
+  std::optional<ScreenShatter> shatter;
+
   /*vk::UniqueDescriptorPool offscreenDescriptorPool{};
   std::vector<vk::DescriptorSet> offscreenDescriptorSets{};
 
@@ -186,7 +188,6 @@ public:
   void createDescriptorSetLayout();
   void createPipeline();
   void createFramebuffers();
-  void createFramebuffers2();
   void createCommandPool();
   void createColorResources();
   void createDepthResources();
@@ -234,4 +235,5 @@ public:
   void checkSwapChainSupport() { SwapChainSupportDetails details; }
   void generateMipmaps(vk::Image image, vk::Format format,
       std::uint32_t texWidth, std::uint32_t texHeight, std::uint32_t mipLevels);
+  void recreateSwapChain();
 };
