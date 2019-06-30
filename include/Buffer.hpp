@@ -12,7 +12,6 @@ struct Buffer {
   vk::UniqueBuffer m_buffer{};
   vk::UniqueDeviceMemory m_memory{};
   vk::DeviceSize m_size{};
-  vk::DeviceSize m_alignment{};
   void* m_mapped{};
 
   vk::BufferUsageFlags m_usageFlags{};

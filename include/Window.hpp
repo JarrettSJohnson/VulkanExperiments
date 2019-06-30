@@ -32,7 +32,7 @@ public:
     //glfwWindowHint(GLFW_RESIZABLE, GL_FALSE);
 
     m_window = glfwCreateWindow(m_width * 1.5, m_height * 1.5, "Vulkan",
-        glfwGetPrimaryMonitor(), nullptr);
+        nullptr, nullptr);
     glfwSetWindowPos(m_window, 100, 100);
     //glfwSetInputMode(m_window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
     glfwSetWindowUserPointer(m_window, this);
